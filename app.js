@@ -1,9 +1,10 @@
 "use strict";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "2.0.0";
 const STORAGE = {
   checklist: "sobrevivencia_checklist_v1",
-  contacts: "sobrevivencia_contacts_v1"
+  contacts: "sobrevivencia_contacts_v1",
+  plan: "sobrevivencia_plano_v1"
 };
 
 const DEFAULT_CHECKLIST = [
@@ -131,6 +132,7 @@ const MODULES = [
   ["energia","🔋","Energia","Bateria e power banks."],
   ["comunicacao","📻","Comunicação","Rádio e redes locais."],
   ["contatos","📞","Contatos","Números locais."],
+  ["plano","🗺️","Plano de emergência","Pontos de encontro, horários e comunicação."],
   ["dados","💾","Backup","Exportar e importar dados."],
   ["fontes","📚","Fontes e limites","Referências do aplicativo."]
 ];
@@ -154,6 +156,7 @@ function loadJSON(key,fallback){try{const saved=localStorage.getItem(key);return
 function saveJSON(key,value){localStorage.setItem(key,JSON.stringify(value))}
 function getChecklist(){const items=loadJSON(STORAGE.checklist,DEFAULT_CHECKLIST);if(!localStorage.getItem(STORAGE.checklist))saveJSON(STORAGE.checklist,items);return items}
 function getContacts(){return loadJSON(STORAGE.contacts,[])}
+function getPlan(){return loadJSON(STORAGE.plan,{meeting:"",backupMeeting:"",radio:"",checkin:"",message:"",notes:""})}
 function showToast(message){clearTimeout(toastTimer);toast.textContent=message;toast.hidden=false;toastTimer=setTimeout(()=>toast.hidden=true,2400)}
 function openModal(title,html){modalTitle.textContent=title;modalBody.innerHTML=html;modal.hidden=false;document.body.style.overflow="hidden"}
 function closeModal(){modal.hidden=true;modalBody.innerHTML="";document.body.style.overflow=""}
@@ -166,30 +169,41 @@ function emergencyCalls(numbers=["190","192","193","199"]){
 }
 
 function renderHome(){
+  const quickIds=["inconsciente","hemorragia","incendio","enchente","perdido","cobra"];
+  const quick=quickIds.map(id=>EMERGENCIES.find(e=>e.id===id)).filter(Boolean);
   view.innerHTML=`
-  <section class="hero"><span class="hero-label">Centro de ação rápida</span><h1>PARE → OBSERVE → PENSE → AJA</h1><p>Use este aplicativo para decidir o próximo passo. Para conteúdo aprofundado, continue usando MAPS.ME, Kiwix, PDFs e vídeos offline.</p><div class="stop-grid"><div>✋ PARE</div><div>👀 OBSERVE</div><div>🧠 PENSE</div><div>➡️ AJA</div></div></section>
-  <section class="panel"><h2>📞 Telefones de emergência</h2><p>Toque para abrir o discador. A chamada depende de serviço telefônico disponível.</p>${emergencyCalls()}</section>
-  <div class="search-wrapper"><span>⌕</span><input id="globalSearch" class="search" type="search" autocomplete="off" placeholder="Buscar queimadura, água, GPS..."></div><div id="searchResults" class="search-results"></div>
-  <div class="section-title"><h2>Acesso rápido</h2><span>disponível offline</span></div>
+  <section class="emergency-now">
+    <div class="emergency-now-head"><span>EMERGÊNCIA AGORA</span><small>toque e aja</small></div>
+    <div class="emergency-call-grid">${["192","193","190","199"].map(n=>{const names={"192":"SAMU","193":"Bombeiros","190":"Polícia","199":"Defesa Civil"};return `<a class="big-call" href="tel:${n}"><strong>${n}</strong><span>${names[n]}</span></a>`}).join("")}</div>
+  </section>
+
+  <section class="stop-strip"><strong>PARE</strong><span>→</span><strong>OBSERVE</strong><span>→</span><strong>PENSE</strong><span>→</span><strong>AJA</strong></section>
+
+  <div class="section-title"><h2>Situações críticas</h2><button class="text-button" data-nav="emergencias">Ver todas</button></div>
+  <div class="critical-grid">${quick.map(e=>`<button class="critical-card" data-emergency="${e.id}"><span>${e.icon}</span><strong>${e.title}</strong></button>`).join("")}</div>
+
+  <div class="search-wrapper"><span>⌕</span><input id="globalSearch" class="search" type="search" autocomplete="off" placeholder="Buscar: queimadura, água, GPS, bateria..."></div><div id="searchResults" class="search-results"></div>
+
+  <div class="section-title"><h2>Essenciais</h2><span>offline</span></div>
   <div class="quick-grid">
-    ${navCard("emergencias","🆘","Emergências","Protocolos rápidos","danger")}
-    ${navCard("agua","💧","Água","Tratar e calcular")}
-    ${navCard("navegacao","🧭","Navegação","GPS e bearing")}
-    ${navCard("energia","🔋","Energia","Autonomia")}
+    ${navCard("navegacao","🧭","Minha posição","GPS e coordenadas")}
+    ${navCard("agua","💧","Água","Tratamento e cálculo")}
     ${navCard("checklist","🎒","Checklist","Kit e preparo")}
-    ${navCard("contatos","📞","Contatos","Números locais")}
-    ${navCard("nos","🪢","Nós","Consulta rápida")}
-    ${navCard("mais","☰","Mais","Todos os módulos")}
+    ${navCard("energia","🔋","Energia","Bateria e power bank")}
   </div>
-  <div class="section-title"><h2>Estado do aplicativo</h2></div>
-  <section class="panel"><div class="status-line"><span>Versão</span><span class="pill">${APP_VERSION}</span></div><div class="status-line"><span>Dados pessoais</span><span class="pill">somente local</span></div><div class="status-line"><span>APIs externas</span><span class="pill">nenhuma</span></div></section>`;
+
+  <button class="wide-more" data-nav="mais"><span>☰</span><div><strong>Todos os recursos</strong><small>Abrigo, nós, comunicação, contatos, plano, calculadoras e backup</small></div><b>›</b></button>`;
 }
 
 function renderEmergencies(){
-  view.innerHTML=`${pageHeader("🆘","Emergências","Ações curtas para os primeiros minutos.")}
-  <section class="panel"><h2>PARE → OBSERVE → PENSE → AJA</h2><ol class="protocol"><li><strong>PARE:</strong> interrompa ações impulsivas.</li><li><strong>OBSERVE:</strong> identifique riscos, feridos e recursos.</li><li><strong>PENSE:</strong> escolha a ação que reduz mais risco.</li><li><strong>AJA:</strong> execute e reavalie.</li></ol>${emergencyCalls()}</section>
-  <div class="list">${EMERGENCIES.map(e=>`<article class="list-card clickable" data-emergency="${e.id}"><h3>${e.icon} ${e.title}</h3><p>${e.summary}</p></article>`).join("")}</div>`;
+  view.innerHTML=`${pageHeader("🆘","Emergências","Encontre a situação e abra um protocolo curto. Em risco grave, ligue para o serviço adequado.")}
+  <div class="emergency-search"><input id="emergencySearch" class="search plain" type="search" placeholder="Filtrar emergências..."></div>
+  <div id="emergencyList" class="list">${renderEmergencyList(EMERGENCIES)}</div>`;
 }
+function renderEmergencyList(items){
+  return items.length?items.map(e=>`<article class="list-card clickable emergency-row" data-emergency="${e.id}"><span class="row-icon">${e.icon}</span><div><h3>${e.title}</h3><p>${e.summary}</p></div><b>›</b></article>`).join(""):`<div class="empty">Nenhuma emergência encontrada.</div>`;
+}
+
 function showEmergency(id){
   const e=EMERGENCIES.find(x=>x.id===id);if(!e)return;
   openModal(`${e.icon} ${e.title}`,`<div class="notice danger"><strong>Primeiro:</strong> não se coloque em risco para ajudar outra pessoa.</div><h3>O que fazer</h3><ol class="protocol">${e.steps.map(s=>`<li>${s}</li>`).join("")}</ol>${e.dont?`<h3>Evite</h3><ul class="dont">${e.dont.map(s=>`<li>${s}</li>`).join("")}</ul>`:""}${e.calls?emergencyCalls(e.calls):""}<div class="notice warning">Guia resumido. Se houver serviço de emergência disponível, siga a orientação profissional.</div>`);
@@ -220,10 +234,12 @@ function renderKnots(){
 }
 
 function navigationTools(prefix){
-  return `<section class="panel"><h2>📍 Minha posição</h2><p>O GPS pode fornecer coordenadas sem internet.</p><button class="btn primary" data-gps="${prefix}">Obter coordenadas</button><div id="${prefix}GpsResult" class="result" hidden></div></section>
-  <section class="panel"><h2>Distância e azimute</h2><form id="${prefix}DistanceForm"><div class="form-grid"><div class="field"><label>Latitude A</label><input name="lat1" type="number" step="any" required></div><div class="field"><label>Longitude A</label><input name="lon1" type="number" step="any" required></div><div class="field"><label>Latitude B</label><input name="lat2" type="number" step="any" required></div><div class="field"><label>Longitude B</label><input name="lon2" type="number" step="any" required></div></div><button class="btn primary full" type="submit">Calcular</button><div id="${prefix}DistanceResult" class="result" hidden></div></form></section>
-  <section class="panel"><h2>Decimal → DMS</h2><form id="${prefix}DmsForm"><div class="form-grid"><div class="field"><label>Latitude</label><input name="lat" type="number" step="any" min="-90" max="90" required></div><div class="field"><label>Longitude</label><input name="lon" type="number" step="any" min="-180" max="180" required></div></div><button class="btn primary full" type="submit">Converter</button><div id="${prefix}DmsResult" class="result" hidden></div></form></section>`;
+  return `<section class="panel priority-panel"><h2>📍 Minha posição agora</h2><p>O GPS do aparelho pode fornecer coordenadas sem internet. O primeiro fix pode levar mais tempo em local fechado.</p><button class="btn primary full" data-gps="${prefix}">Obter coordenadas</button><div id="${prefix}GpsResult" class="result" hidden></div></section>
+  <details class="tool-details"><summary>Distância e azimute</summary><div class="details-body"><form id="${prefix}DistanceForm"><div class="form-grid"><div class="field"><label>Latitude A</label><input name="lat1" type="number" step="any" required></div><div class="field"><label>Longitude A</label><input name="lon1" type="number" step="any" required></div><div class="field"><label>Latitude B</label><input name="lat2" type="number" step="any" required></div><div class="field"><label>Longitude B</label><input name="lon2" type="number" step="any" required></div></div><button class="btn primary full" type="submit">Calcular</button><div id="${prefix}DistanceResult" class="result" hidden></div></form></div></details>
+  <details class="tool-details"><summary>Coordenada decimal → DMS</summary><div class="details-body"><form id="${prefix}DmsForm"><div class="form-grid"><div class="field"><label>Latitude</label><input name="lat" type="number" step="any" min="-90" max="90" required></div><div class="field"><label>Longitude</label><input name="lon" type="number" step="any" min="-180" max="180" required></div></div><button class="btn primary full" type="submit">Converter</button><div id="${prefix}DmsResult" class="result" hidden></div></form></div></details>
+  <details class="tool-details"><summary>DMS → coordenada decimal</summary><div class="details-body"><form id="${prefix}DecimalForm"><h3>Latitude</h3><div class="form-grid four"><div class="field"><label>Graus</label><input name="latD" type="number" min="0" max="90" required></div><div class="field"><label>Min</label><input name="latM" type="number" min="0" max="59" step="any" required></div><div class="field"><label>Seg</label><input name="latS" type="number" min="0" max="59.9999" step="any" required></div><div class="field"><label>Direção</label><select name="latDir"><option>N</option><option>S</option></select></div></div><h3>Longitude</h3><div class="form-grid four"><div class="field"><label>Graus</label><input name="lonD" type="number" min="0" max="180" required></div><div class="field"><label>Min</label><input name="lonM" type="number" min="0" max="59" step="any" required></div><div class="field"><label>Seg</label><input name="lonS" type="number" min="0" max="59.9999" step="any" required></div><div class="field"><label>Direção</label><select name="lonDir"><option>W</option><option>E</option></select></div></div><button class="btn primary full" type="submit">Converter</button><div id="${prefix}DecimalResult" class="result" hidden></div></form></div></details>`;
 }
+
 function renderNavigation(){view.innerHTML=`${pageHeader("🧭","Navegação","Complemento para o MAPS.ME: coordenadas, distância e direção.")}<div class="notice">Use GPS + mapa + observação do terreno. Não dependa de apenas um método.</div>${navigationTools("nav")}`}
 
 function energyTools(prefix){
@@ -236,12 +252,13 @@ function renderEnergy(){
   <div class="notice warning">Estes valores são estimativas. Conversão de tensão, temperatura, cabo, desgaste e outras perdas alteram o resultado.</div>`;
 }
 function renderCommunication(){
-  view.innerHTML=`${pageHeader("📻","Comunicação","Redundância é mais importante que depender de apenas um aplicativo.")}
-  <section class="panel"><h2>Plano rápido</h2><ol class="protocol"><li>Defina quem precisa receber informação.</li><li>Informe: quem / onde / condição / próximo passo.</li><li>Defina horários fixos para contato.</li><li>Tenha um ponto de encontro físico.</li></ol></section>
-  <section class="panel"><h2>📻 Rádio</h2><p>Mantenha equipamentos, baterias, frequências e canais testados antes da emergência.</p></section>
-  <section class="panel"><h2>📡 Meshtastic</h2><p>Pode formar redes locais de mensagens usando dispositivos compatíveis. O alcance depende do terreno, antena, posicionamento e existência de outros nós.</p></section>
-  <section class="panel"><h2>💬 Bitchat</h2><p>Comunicação local pode ser útil quando outras pessoas próximas também possuírem a solução configurada. Teste tudo antes de depender dela.</p></section>
-  <section class="panel"><h2>Código Morse</h2><p>Reservado para uma versão futura.</p></section>`;
+  view.innerHTML=`${pageHeader("📻","Comunicação","Use camadas: telefone/SMS, rádio, rede local e ponto de encontro.")}
+  <section class="panel priority-panel"><h2>Mensagem curta de emergência</h2><div class="message-template"><strong>QUEM:</strong> seu nome/grupo<br><strong>ONDE:</strong> coordenadas ou ponto conhecido<br><strong>CONDIÇÃO:</strong> o que aconteceu / feridos<br><strong>PRECISO:</strong> ajuda necessária<br><strong>PRÓXIMO CONTATO:</strong> horário combinado</div></section>
+  <section class="panel"><h2>📱 Celular / SMS</h2><ul class="protocol"><li>Quando chamadas estiverem congestionadas, SMS pode ser mais fácil de entregar.</li><li>Evite tentativas contínuas; defina horários de checagem para preservar bateria.</li><li>Envie localização e próximo passo de forma curta.</li></ul></section>
+  <section class="panel"><h2>📻 Rádio</h2><p>Deixe canais/frequências e horários combinados antes da emergência. Mantenha bateria e antena testadas.</p></section>
+  <section class="panel"><h2>📡 Meshtastic</h2><p>Útil quando já há dispositivos compatíveis configurados. Alcance depende de terreno, antena, altura e existência de outros nós.</p></section>
+  <section class="panel"><h2>💬 Bitchat / rede local</h2><p>Pode complementar outras formas de contato próximo, mas não deve ser a única opção. Teste antes de depender dela.</p></section>
+  <section class="panel"><h2>… --- … SOS em Morse</h2><p><strong>SOS:</strong> três sinais curtos, três longos, três curtos. Use como sinal de socorro quando apropriado; não desperdice bateria repetindo sem estratégia.</p></section>`;
 }
 
 function renderChecklist(){
@@ -253,11 +270,14 @@ function renderChecklist(){
 }
 
 function renderCalculators(){
-  view.innerHTML=`${pageHeader("🧮","Calculadoras","Ferramentas pequenas e totalmente offline.")}
-  <section class="panel"><h2>💧 Água</h2>${waterCalculator("calc")}</section>${energyTools("calcEnergy")}
-  <section class="panel"><h2>📏 Conversão de unidades</h2><form id="unitForm"><div class="form-grid"><div class="field"><label>Valor</label><input name="value" type="number" step="any" required></div><div class="field"><label>Conversão</label><select name="conversion"><option value="km-mi">km → milhas</option><option value="mi-km">milhas → km</option><option value="m-ft">metros → pés</option><option value="ft-m">pés → metros</option><option value="l-gal">litros → galões US</option><option value="gal-l">galões US → litros</option><option value="c-f">°C → °F</option><option value="f-c">°F → °C</option><option value="kg-lb">kg → lb</option><option value="lb-kg">lb → kg</option></select></div></div><button class="btn primary full" type="submit">Converter</button><div id="unitResult" class="result" hidden></div></form></section>
-  ${navigationTools("calcNav")}
-  <section class="panel"><h2>🪢 Comprimento de corda</h2><form id="ropeForm"><div class="form-grid"><div class="field"><label>Número de trechos</label><input name="segments" type="number" min="1" value="1" required></div><div class="field"><label>Comprimento por trecho (m)</label><input name="length" type="number" min="0.01" step="0.01" required></div><div class="field"><label>Margem extra (%)</label><input name="margin" type="number" min="0" value="20" required></div><div class="field"><label>Extra para nós (m)</label><input name="extra" type="number" min="0" step="0.01" value="0" required></div></div><button class="btn primary full" type="submit">Estimar</button><div id="ropeResult" class="result" hidden></div></form><div class="notice warning">Esta calculadora mede comprimento. Não calcula resistência, carga segura ou adequação para escalada/resgate.</div></section>`;
+  view.innerHTML=`${pageHeader("🧮","Calculadoras","As mais importantes aparecem primeiro; as demais ficam recolhidas para não poluir a tela.")}
+  <section class="panel priority-panel"><h2>💧 Água</h2>${waterCalculator("calc")}</section>
+  <details class="tool-details"><summary>🔋 Autonomia e power bank</summary><div class="details-body">${energyTools("calcEnergy")}</div></details>
+  <details class="tool-details"><summary>⚡ Watts-hora (Wh)</summary><div class="details-body"><form id="whForm"><div class="form-grid"><div class="field"><label>Tensão (V)</label><input name="volts" type="number" min="0.01" step="any" required></div><div class="field"><label>Capacidade (mAh)</label><input name="mah" type="number" min="1" step="any" required></div></div><button class="btn primary full" type="submit">Calcular Wh</button><div id="whResult" class="result" hidden></div></form></div></details>
+  <details class="tool-details"><summary>📏 Conversão de unidades</summary><div class="details-body"><form id="unitForm"><div class="form-grid"><div class="field"><label>Valor</label><input name="value" type="number" step="any" required></div><div class="field"><label>Conversão</label><select name="conversion"><option value="km-mi">km → milhas</option><option value="mi-km">milhas → km</option><option value="m-ft">metros → pés</option><option value="ft-m">pés → metros</option><option value="l-gal">litros → galões US</option><option value="gal-l">galões US → litros</option><option value="c-f">°C → °F</option><option value="f-c">°F → °C</option><option value="kg-lb">kg → lb</option><option value="lb-kg">lb → kg</option></select></div></div><button class="btn primary full" type="submit">Converter</button><div id="unitResult" class="result" hidden></div></form></div></details>
+  <details class="tool-details"><summary>🧭 Coordenadas, distância e azimute</summary><div class="details-body">${navigationTools("calcNav")}</div></details>
+  <details class="tool-details"><summary>🚶 Tempo de deslocamento</summary><div class="details-body"><form id="travelForm"><div class="form-grid"><div class="field"><label>Distância (km)</label><input name="distance" type="number" min="0.001" step="any" required></div><div class="field"><label>Velocidade média (km/h)</label><input name="speed" type="number" min="0.1" step="any" value="4" required></div></div><button class="btn primary full" type="submit">Estimar tempo</button><div id="travelResult" class="result" hidden></div></form><div class="notice warning">Terreno, subida, clima, carga e condição física podem mudar muito o tempo real.</div></div></details>
+  <details class="tool-details"><summary>🪢 Comprimento estimado de corda</summary><div class="details-body"><form id="ropeForm"><div class="form-grid"><div class="field"><label>Número de trechos</label><input name="segments" type="number" min="1" value="1" required></div><div class="field"><label>Comprimento por trecho (m)</label><input name="length" type="number" min="0.01" step="0.01" required></div><div class="field"><label>Margem extra (%)</label><input name="margin" type="number" min="0" value="20" required></div><div class="field"><label>Extra para nós (m)</label><input name="extra" type="number" min="0" step="0.01" value="0" required></div></div><button class="btn primary full" type="submit">Estimar</button><div id="ropeResult" class="result" hidden></div></form><div class="notice warning">Planejamento de comprimento apenas. Não calcula resistência, carga segura ou uso em escalada/resgate.</div></div></details>`;
 }
 
 function renderContacts(){
@@ -267,14 +287,33 @@ function renderContacts(){
   <section class="panel"><h2>Adicionar contato</h2><form id="contactAddForm"><div class="form-grid"><div class="field"><label>Nome</label><input name="name" maxlength="80" required></div><div class="field"><label>Telefone</label><input name="phone" inputmode="tel" maxlength="40" required></div></div><div class="field" style="margin-top:10px"><label>Observação</label><input name="note" maxlength="120" placeholder="Ex.: ponto de encontro"></div><button class="btn primary full" type="submit">Salvar contato</button></form></section>
   <div class="list">${contacts.length?contacts.map(c=>`<article class="list-card contact-card"><div><div class="contact-name">${escapeHTML(c.name)}</div><div class="contact-number">${escapeHTML(c.phone)}</div>${c.note?`<div class="meta">${escapeHTML(c.note)}</div>`:""}<div class="btn-row"><button class="btn" data-edit-contact="${escapeHTML(c.id)}">Editar</button><button class="btn danger" data-delete-contact="${escapeHTML(c.id)}">Excluir</button></div></div><a class="call-circle" href="tel:${escapeHTML(c.phone)}">📞</a></article>`).join(""):`<div class="empty">Nenhum contato personalizado.</div>`}</div>`;
 }
-function renderMore(){view.innerHTML=`${pageHeader("☰","Mais","Todos os módulos do aplicativo.")}<div class="card-grid">${MODULES.map(i=>navCard(i[0],i[1],i[2],i[3])).join("")}</div>`}
-function renderData(){
-  const checklist=getChecklist(),contacts=getContacts();
-  view.innerHTML=`${pageHeader("💾","Backup e dados","Faça backups porque o armazenamento do navegador pode ser apagado pelo sistema ou pelo usuário.")}
-  <section class="panel"><div class="status-line"><span>Checklist</span><span class="pill">${checklist.length} itens</span></div><div class="status-line"><span>Contatos</span><span class="pill">${contacts.length}</span></div><div class="status-line"><span>Nuvem</span><span class="pill">desativada</span></div></section>
-  <section class="panel"><h2>Exportar / importar</h2><p>O backup contém apenas checklist e contatos personalizados.</p><div class="btn-row"><button class="btn primary" data-action="export">Exportar</button><button class="btn" data-action="import">Importar</button></div></section>
-  <section class="panel"><h2>Limpar dados</h2><p>Restaura o checklist inicial e apaga seus contatos personalizados.</p><button class="btn danger" data-action="clear">Limpar dados locais</button></section>`;
+function renderMore(){
+  view.innerHTML=`${pageHeader("☰","Todos os recursos","O conteúdo fica completo aqui, mas a tela inicial permanece rápida.")}
+  <div class="card-grid">${MODULES.map(i=>navCard(i[0],i[1],i[2],i[3])).join("")}</div>
+  <section class="panel app-status"><h2>Estado do app</h2><div class="status-line"><span>Versão</span><span class="pill">${APP_VERSION}</span></div><div class="status-line"><span>Interface</span><span class="pill">OLED preto puro</span></div><div class="status-line"><span>Dados</span><span class="pill">somente local</span></div><div class="status-line"><span>Funções principais</span><span class="pill">sem API externa</span></div></section>`;
 }
+function renderPlan(){
+  const p=getPlan();
+  view.innerHTML=`${pageHeader("🗺️","Plano de emergência","Informações curtas que você decide antes da emergência. Tudo fica somente neste aparelho.")}
+  <form id="planForm" class="panel">
+    <div class="field"><label>Ponto de encontro principal</label><input name="meeting" maxlength="120" value="${escapeHTML(p.meeting)}" placeholder="Ex.: portão principal / praça..."></div>
+    <div class="field"><label>Ponto de encontro alternativo</label><input name="backupMeeting" maxlength="120" value="${escapeHTML(p.backupMeeting)}"></div>
+    <div class="form-grid"><div class="field"><label>Canal / frequência combinada</label><input name="radio" maxlength="80" value="${escapeHTML(p.radio)}"></div><div class="field"><label>Horários de checagem</label><input name="checkin" maxlength="80" value="${escapeHTML(p.checkin)}" placeholder="Ex.: 08:00 / 14:00 / 20:00"></div></div>
+    <div class="field"><label>Mensagem padrão</label><textarea name="message" maxlength="500" placeholder="Mensagem curta para copiar em uma emergência">${escapeHTML(p.message)}</textarea></div>
+    <div class="field"><label>Observações</label><textarea name="notes" maxlength="800">${escapeHTML(p.notes)}</textarea></div>
+    <button class="btn primary full" type="submit">Salvar plano localmente</button>
+  </form>`;
+}
+
+function renderData(){
+  const checklist=getChecklist(),contacts=getContacts(),plan=getPlan();
+  const hasPlan=Object.values(plan).some(Boolean);
+  view.innerHTML=`${pageHeader("💾","Backup e dados","Faça um backup depois de personalizar checklist, contatos ou plano.")}
+  <section class="panel"><div class="status-line"><span>Checklist</span><span class="pill">${checklist.length} itens</span></div><div class="status-line"><span>Contatos</span><span class="pill">${contacts.length}</span></div><div class="status-line"><span>Plano</span><span class="pill">${hasPlan?"preenchido":"vazio"}</span></div><div class="status-line"><span>Nuvem</span><span class="pill">desativada</span></div></section>
+  <section class="panel"><h2>Exportar / importar</h2><p>O arquivo JSON contém checklist, contatos personalizados e plano de emergência.</p><div class="btn-row"><button class="btn primary" data-action="export">Exportar backup</button><button class="btn" data-action="import">Importar backup</button></div></section>
+  <section class="panel"><h2>Limpar dados</h2><p>Restaura o checklist inicial e apaga contatos e plano.</p><button class="btn danger" data-action="clear">Limpar dados locais</button></section>`;
+}
+
 function renderSources(){
   view.innerHTML=`${pageHeader("📚","Fontes e limites","Protocolos oficiais e orientação profissional têm prioridade.")}
   <section class="panel"><h2>Fontes principais</h2><ul class="protocol"><li>Ministério da Saúde — SAMU 192.</li><li>Ministério da Saúde / Biblioteca Virtual em Saúde — primeiros socorros.</li><li>Ministério da Saúde e Instituto Butantan — acidentes com serpentes.</li><li>Ministério da Saúde — cuidados com água.</li><li>ANATEL — números de emergência.</li><li>Defesa Civil — emergências e telefone 199.</li></ul></section>
@@ -282,9 +321,9 @@ function renderSources(){
 }
 
 function renderView(name){
-  const map={home:renderHome,emergencias:renderEmergencies,agua:renderWater,abrigo:renderShelter,nos:renderKnots,navegacao:renderNavigation,energia:renderEnergy,comunicacao:renderCommunication,checklist:renderChecklist,calculadoras:renderCalculators,contatos:renderContacts,dados:renderData,fontes:renderSources,mais:renderMore};
+  const map={home:renderHome,emergencias:renderEmergencies,agua:renderWater,abrigo:renderShelter,nos:renderKnots,navegacao:renderNavigation,energia:renderEnergy,comunicacao:renderCommunication,checklist:renderChecklist,calculadoras:renderCalculators,contatos:renderContacts,plano:renderPlan,dados:renderData,fontes:renderSources,mais:renderMore};
   (map[name]||renderHome)();
-  const morePages=["agua","abrigo","nos","navegacao","energia","comunicacao","contatos","dados","fontes"];
+  const morePages=["agua","abrigo","nos","navegacao","energia","comunicacao","contatos","plano","dados","fontes"];
   document.querySelectorAll(".nav-button").forEach(b=>b.classList.toggle("active",b.dataset.nav===name||(b.dataset.nav==="mais"&&morePages.includes(name))));
   window.scrollTo(0,0);
 }
@@ -335,6 +374,21 @@ function calculateDistance(form,prefix){
 function calculateDMS(form,prefix){
   const d=new FormData(form),lat=Number(d.get("lat")),lon=Number(d.get("lon")),r=document.getElementById(prefix+"DmsResult");r.hidden=false;r.innerHTML=`<strong class="coord">${decimalToDMS(lat,true)}</strong><small class="coord">${decimalToDMS(lon,false)}</small>`;
 }
+function calculateDecimal(form,prefix){
+  const d=new FormData(form);
+  const toDec=(deg,min,sec,dir)=>{let v=Number(deg)+Number(min)/60+Number(sec)/360;if(dir==="S"||dir==="W")v*=-1;return v};
+  const lat=toDec(d.get("latD"),d.get("latM"),d.get("latS"),d.get("latDir"));
+  const lon=toDec(d.get("lonD"),d.get("lonM"),d.get("lonS"),d.get("lonDir"));
+  const r=document.getElementById(prefix+"DecimalResult");r.hidden=false;r.innerHTML=`<strong class="coord">${lat.toFixed(6)}, ${lon.toFixed(6)}</strong><small>Formato decimal.</small>`;
+}
+function calculateWh(form){
+  const d=new FormData(form),volts=Number(d.get("volts")),mah=Number(d.get("mah")),wh=volts*mah/1000,r=document.getElementById("whResult");
+  r.hidden=false;r.innerHTML=`<strong>${wh.toFixed(2)} Wh</strong><small>Wh = V × Ah. Valor nominal, antes das perdas de conversão.</small>`;
+}
+function calculateTravel(form){
+  const d=new FormData(form),distance=Number(d.get("distance")),speed=Number(d.get("speed")),hours=distance/speed,h=Math.floor(hours),m=Math.round((hours-h)*60),r=document.getElementById("travelResult");
+  r.hidden=false;r.innerHTML=`<strong>≈ ${h} h ${m} min</strong><small>${distance.toFixed(2)} km a ${speed.toFixed(2)} km/h.</small>`;
+}
 function calculateUnit(form){
   const d=new FormData(form),value=Number(d.get("value")),type=d.get("conversion");let answer=0,unit="";
   switch(type){case"km-mi":answer=value*.6213711922;unit="mi";break;case"mi-km":answer=value/.6213711922;unit="km";break;case"m-ft":answer=value*3.280839895;unit="ft";break;case"ft-m":answer=value/3.280839895;unit="m";break;case"l-gal":answer=value*.2641720524;unit="gal US";break;case"gal-l":answer=value/.2641720524;unit="L";break;case"c-f":answer=value*9/5+32;unit="°F";break;case"f-c":answer=(value-32)*5/9;unit="°C";break;case"kg-lb":answer=value*2.2046226218;unit="lb";break;case"lb-kg":answer=value/2.2046226218;unit="kg";break}
@@ -354,27 +408,31 @@ function editContact(id){
   openModal("Editar contato",`<form id="contactEditForm" data-id="${escapeHTML(id)}"><div class="field"><label>Nome</label><input name="name" value="${escapeHTML(c.name)}" required></div><div class="field" style="margin-top:10px"><label>Telefone</label><input name="phone" value="${escapeHTML(c.phone)}" required></div><div class="field" style="margin-top:10px"><label>Observação</label><input name="note" value="${escapeHTML(c.note||"")}"></div><button class="btn primary full" type="submit">Salvar</button></form>`);
 }
 function exportBackup(){
-  const backup={app:"Sobrevivência Offline",version:1,created:new Date().toISOString(),checklist:getChecklist(),contacts:getContacts()};
+  const backup={app:"Sobrevivência Offline",version:2,created:new Date().toISOString(),checklist:getChecklist(),contacts:getContacts(),plan:getPlan()};
   const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");
   link.href=url;link.download="sobrevivencia-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);showToast("Backup exportado");
 }
+
 async function importBackup(file){
   try{
     const backup=JSON.parse(await file.text());
     if(!Array.isArray(backup.checklist)||!Array.isArray(backup.contacts))throw new Error();
-    if(!confirm("Substituir checklist e contatos atuais pelo backup?"))return;
-    saveJSON(STORAGE.checklist,backup.checklist);saveJSON(STORAGE.contacts,backup.contacts);showToast("Backup importado");renderView("dados");
+    if(!confirm("Substituir checklist, contatos e plano atuais pelo backup?"))return;
+    saveJSON(STORAGE.checklist,backup.checklist);saveJSON(STORAGE.contacts,backup.contacts);saveJSON(STORAGE.plan,backup.plan||getPlan());showToast("Backup importado");renderView("dados");
   }catch{showToast("Não foi possível importar o backup")}finally{importInput.value=""}
 }
+
 function clearData(){
-  if(!confirm("Apagar checklist e contatos personalizados?"))return;
-  localStorage.removeItem(STORAGE.checklist);localStorage.removeItem(STORAGE.contacts);getChecklist();showToast("Dados restaurados");renderView("dados");
+  if(!confirm("Apagar checklist, contatos personalizados e plano de emergência?"))return;
+  localStorage.removeItem(STORAGE.checklist);localStorage.removeItem(STORAGE.contacts);localStorage.removeItem(STORAGE.plan);getChecklist();showToast("Dados restaurados");renderView("dados");
 }
+
 function searchDatabase(){
   const emergencies=EMERGENCIES.map(i=>({type:"emergency",id:i.id,icon:i.icon,title:i.title,description:i.summary,keywords:(i.title+" "+i.summary+" "+i.steps.join(" ")+" "+i.dont.join(" ")).toLowerCase()}));
   const modules=MODULES.map(i=>({type:"view",id:i[0],icon:i[1],title:i[2],description:i[3],keywords:(i[2]+" "+i[3]).toLowerCase()}));
-  return [...emergencies,...modules,{type:"view",id:"checklist",icon:"🎒",title:"Checklist",description:"Itens e kit",keywords:"checklist mochila kit preparo"},{type:"view",id:"calculadoras",icon:"🧮",title:"Calculadoras",description:"Água, energia, GPS e unidades",keywords:"calculadora água energia bateria gps coordenadas corda unidades"}];
+  return [...emergencies,...modules,{type:"view",id:"checklist",icon:"🎒",title:"Checklist",description:"Itens e kit",keywords:"checklist mochila kit preparo"},{type:"view",id:"calculadoras",icon:"🧮",title:"Calculadoras",description:"Água, energia, GPS, unidades e deslocamento",keywords:"calculadora água energia bateria powerbank watts wh gps coordenadas corda unidades caminhada tempo deslocamento"}];
 }
+
 function search(query){
   const box=document.getElementById("searchResults");if(!box)return;const text=query.trim().toLowerCase();if(!text){box.innerHTML="";return}
   const results=searchDatabase().filter(i=>i.keywords.includes(text)).slice(0,8);
@@ -393,12 +451,13 @@ view.addEventListener("click",event=>{
   const deleteContactButton=event.target.closest("[data-delete-contact]");if(deleteContactButton){const id=deleteContactButton.dataset.deleteContact;if(confirm("Excluir este contato?")){saveJSON(STORAGE.contacts,getContacts().filter(i=>i.id!==id));renderContacts()}return}
   const action=event.target.closest("[data-action]");if(action){if(action.dataset.action==="export")exportBackup();if(action.dataset.action==="import")importInput.click();if(action.dataset.action==="clear")clearData()}
 });
-view.addEventListener("input",event=>{if(event.target.id==="globalSearch")search(event.target.value)});
+view.addEventListener("input",event=>{if(event.target.id==="globalSearch")search(event.target.value);if(event.target.id==="emergencySearch"){const q=event.target.value.trim().toLowerCase();const items=EMERGENCIES.filter(e=>(e.title+" "+e.summary+" "+e.steps.join(" ")).toLowerCase().includes(q));const box=document.getElementById("emergencyList");if(box)box.innerHTML=renderEmergencyList(items)}});
 view.addEventListener("change",event=>{const checkbox=event.target.closest("[data-check]");if(!checkbox)return;const items=getChecklist(),item=items.find(i=>i.id===checkbox.dataset.check);if(!item)return;item.done=checkbox.checked;saveJSON(STORAGE.checklist,items);renderChecklist()});
 view.addEventListener("submit",event=>{
   event.preventDefault();const form=event.target;
   if(form.id==="checklistAddForm"){const d=new FormData(form),items=getChecklist();items.push({id:uid("check"),text:String(d.get("text")).trim(),category:String(d.get("category")).trim(),done:false});saveJSON(STORAGE.checklist,items);renderChecklist();showToast("Item adicionado");return}
   if(form.id==="contactAddForm"){const d=new FormData(form),contacts=getContacts();contacts.push({id:uid("contact"),name:String(d.get("name")).trim(),phone:String(d.get("phone")).trim(),note:String(d.get("note")).trim()});saveJSON(STORAGE.contacts,contacts);renderContacts();showToast("Contato salvo");return}
+  if(form.id==="planForm"){const d=new FormData(form);saveJSON(STORAGE.plan,{meeting:String(d.get("meeting")||"").trim(),backupMeeting:String(d.get("backupMeeting")||"").trim(),radio:String(d.get("radio")||"").trim(),checkin:String(d.get("checkin")||"").trim(),message:String(d.get("message")||"").trim(),notes:String(d.get("notes")||"").trim()});showToast("Plano salvo localmente");return}
   if(form.id==="mainWaterForm")return calculateWater(form,"mainWaterResult");
   if(form.id==="calcWaterForm")return calculateWater(form,"calcWaterResult");
   if(form.id==="energyRuntimeForm")return calculateRuntime(form,"energyRuntimeResult");
@@ -409,6 +468,10 @@ view.addEventListener("submit",event=>{
   if(form.id==="calcNavDistanceForm")return calculateDistance(form,"calcNav");
   if(form.id==="navDmsForm")return calculateDMS(form,"nav");
   if(form.id==="calcNavDmsForm")return calculateDMS(form,"calcNav");
+  if(form.id==="navDecimalForm")return calculateDecimal(form,"nav");
+  if(form.id==="calcNavDecimalForm")return calculateDecimal(form,"calcNav");
+  if(form.id==="whForm")return calculateWh(form);
+  if(form.id==="travelForm")return calculateTravel(form);
   if(form.id==="unitForm")return calculateUnit(form);
   if(form.id==="ropeForm")return calculateRope(form);
 });
@@ -422,16 +485,17 @@ document.querySelector(".bottom-nav").addEventListener("click",event=>{const b=e
 document.getElementById("homeButton").addEventListener("click",()=>renderView("home"));
 importInput.addEventListener("change",()=>{const file=importInput.files?.[0];if(file)importBackup(file)});
 
+let offlineReady=false;
 function updateConnection(){
-  if(navigator.onLine){networkStatus.textContent="● online · offline preparado";networkStatus.className="online"}
-  else{networkStatus.textContent="● offline · usando cache";networkStatus.className="offline"}
+  if(navigator.onLine){networkStatus.textContent=offlineReady?"● online · cache offline pronto":"● online · preparando offline";networkStatus.className="online"}
+  else{networkStatus.textContent=offlineReady?"● offline · pronto":"● offline";networkStatus.className="offline"}
 }
 window.addEventListener("online",updateConnection);
 window.addEventListener("offline",updateConnection);
 window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();installPrompt=event;installButton.hidden=false});
 installButton.addEventListener("click",async()=>{if(!installPrompt){showToast("Use o menu do navegador para instalar");return}installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;installButton.hidden=true});
 window.addEventListener("appinstalled",()=>{installPrompt=null;installButton.hidden=true;showToast("Aplicativo instalado")});
-async function registerServiceWorker(){if(!("serviceWorker" in navigator))return;try{await navigator.serviceWorker.register("./service-worker.js",{scope:"./"})}catch(error){console.error("Erro no Service Worker:",error)}}
+async function registerServiceWorker(){if(!("serviceWorker" in navigator))return;try{await navigator.serviceWorker.register("./service-worker.js",{scope:"./"});await navigator.serviceWorker.ready;offlineReady=true;updateConnection()}catch(error){console.error("Erro no Service Worker:",error)}}
 
 getChecklist();
 updateConnection();
