@@ -1,25 +1,19 @@
 const CACHE_PREFIX = "sobrevivencia-offline-v";
-const CACHE_NAME = "sobrevivencia-offline-v3.2.2";
+const CACHE_NAME = "sobrevivencia-offline-v3.2.3";
 
 // Somente o shell da PWA entra no cache. Arquivos escolhidos pelo usuário
 // na Biblioteca Offline (fotos, vídeos, PDFs etc.) NUNCA entram aqui.
 const FILES = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app.js",
   "./manifest.json",
-  "./icone-192.png",
-  "./icone-512.png"
+  "./icone.png"
 ];
 
 const ESSENTIAL_FILES = [
   "./index.html",
-  "./styles.css",
-  "./app.js",
   "./manifest.json",
-  "./icone-192.png",
-  "./icone-512.png"
+  "./icone.png"
 ];
 
 const INDEX_URL = new URL("./index.html", self.location).href;
