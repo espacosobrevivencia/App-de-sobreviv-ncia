@@ -116,9 +116,9 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
   <script>
 "use strict";
 
-const APP_VERSION = "3.3.2";
+const APP_VERSION = "3.3.3";
 const CURRENT_SCHEMA = 6;
-const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.2";
+const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.3";
 const CORE_FILES = ["./index.html","./manifest.json","./icone.png"];
 const STORAGE = {
   schema: "sobrevivencia_schema_v1",
@@ -495,23 +495,83 @@ function homeSectionHTML(id,home,attention){
   return "";
 }
 
-function renderHome(){
+function getSafeHomeSettings(){
+  const fallback=normalizeHomeSettings(DEFAULT_HOME_SETTINGS);
   try{
-    const attention=getAttentionCount();
-    const home=getSettings().home;
-    const hidden=new Set(home.hiddenSections);
-    const html=home.sectionOrder
-      .filter(id=>!hidden.has(id))
-      .map(id=>{
-        try{return homeSectionHTML(id,home,attention)}
-        catch(error){console.error("Erro no bloco da Home:",id,error);return ""}
-      })
-      .join("");
-    view.innerHTML=html||`<div class="empty"><strong>Tela inicial sem blocos.</strong><br><small>Use Mais → Personalizar tela inicial para restaurar ou adicionar itens.</small><div class="btn-row"><button class="btn primary" data-nav="personalizar-home">Personalizar agora</button><button class="btn" data-action="repair-home-settings">Restaurar padrão</button></div></div>`;
+    const raw=loadJSON(STORAGE.settings,{});
+    if(!raw||typeof raw!=="object"||Array.isArray(raw))return fallback;
+    return normalizeHomeSettings(raw.home);
   }catch(error){
-    console.error("Falha ao montar a Home",error);
-    view.innerHTML=`<div class="notice warning"><strong>Não foi possível carregar a configuração da tela inicial.</strong><br>Seus outros dados continuam preservados.</div><div class="btn-row"><button class="btn primary" data-action="repair-home-settings">Corrigir tela inicial</button><button class="btn" data-nav="mais">Todos os recursos</button></div>`;
+    console.error("Configuração da Home inválida; usando padrão.",error);
+    return fallback;
   }
+}
+
+function safeAttentionCount(){
+  try{return getAttentionCount()}
+  catch(error){console.error("Falha ao calcular avisos da Home",error);return 0}
+}
+
+function buildHomeHTML(home,attention){
+  const normalized=normalizeHomeSettings(home);
+  const hidden=new Set(normalized.hiddenSections);
+  return normalized.sectionOrder
+    .filter(id=>!hidden.has(id))
+    .map(id=>{
+      try{return homeSectionHTML(id,normalized,attention)}
+      catch(error){
+        console.error("Erro isolado no bloco da Home:",id,error);
+        return "";
+      }
+    })
+    .join("");
+}
+
+function renderHome(){
+  const fallback=normalizeHomeSettings(DEFAULT_HOME_SETTINGS);
+  const attention=safeAttentionCount();
+
+  let home=getSafeHomeSettings();
+  let html="";
+
+  try{
+    html=buildHomeHTML(home,attention);
+  }catch(error){
+    console.error("Falha na personalização da Home; usando padrão.",error);
+    home=fallback;
+    try{
+      html=buildHomeHTML(fallback,attention);
+    }catch(secondError){
+      console.error("Falha também no layout padrão da Home.",secondError);
+    }
+  }
+
+  if(!html){
+    // Último fallback: elementos essenciais sem depender da configuração salva.
+    html=`
+      <div class="emergency-now">
+        <div class="emergency-now-head"><span>EMERGÊNCIA BRASIL</span><small>1 toque</small></div>
+        ${bigEmergencyCalls()}
+      </div>
+      <button class="home-main-sos" data-nav="modo-emergencia"><span>🆘</span> MODO EMERGÊNCIA</button>
+      <button class="home-position" data-nav="navegacao">
+        <div><b>📍 MINHA POSIÇÃO</b><small>GPS e última posição conhecida</small></div><span>›</span>
+      </button>
+      <div class="section-title"><h2>Acesso rápido</h2><span>padrão seguro</span></div>
+      <div class="home-core">
+        ${resourceCard("agua","💧","Água","Tratamento, reserva e planejamento.")}
+        ${resourceCard("checklist","🎒","Checklist","Kit e preparo.")}
+        ${resourceCard("energia","🔋","Energia","Bateria, orçamento e power banks.")}
+        ${resourceCard("navegacao","🧭","Navegação","GPS, posição, bússola e coordenadas.")}
+      </div>
+      <button class="wide-more" data-nav="mais">
+        <span>☰</span>
+        <div><strong>Todos os recursos</strong><small>Abrir todos os módulos do aplicativo</small></div>
+        <b>›</b>
+      </button>`;
+  }
+
+  view.innerHTML=html;
 }
 
 function renderHomeSettings(){
@@ -765,7 +825,7 @@ view.addEventListener("click",event=>{
   const delta=event.target.closest("[data-inventory-delta]");if(delta){const items=getInventory(),i=items.find(x=>x.id===delta.dataset.id);if(i){i.quantity=Math.max(0,Number(i.quantity)+Number(delta.dataset.inventoryDelta));saveJSON(STORAGE.inventory,items);renderInventory()}return}
   const pairs=[["[data-edit-check]",editChecklist,"editCheck"],["[data-edit-contact]",editContact,"editContact"],["[data-edit-inventory]",editInventory,"editInventory"],["[data-edit-maintenance]",editMaintenance,"editMaintenance"],["[data-edit-resource]",editResource,"editResource"]];for(const [sel,fn,key] of pairs){const b=event.target.closest(sel);if(b){fn(b.dataset[key]);return}}
   const deletes=[["[data-delete-check]",STORAGE.checklist,getChecklist,renderChecklist,"deleteCheck"],["[data-delete-contact]",STORAGE.contacts,getContacts,renderContacts,"deleteContact"],["[data-delete-journal]",STORAGE.journal,getJournal,renderJournal,"deleteJournal"],["[data-delete-inventory]",STORAGE.inventory,getInventory,renderInventory,"deleteInventory"],["[data-delete-maintenance]",STORAGE.maintenance,getMaintenance,renderMaintenance,"deleteMaintenance"],["[data-delete-resource]",STORAGE.resources,getResources,renderResources,"deleteResource"]];for(const [sel,key,getter,renderer,dataKey] of deletes){const b=event.target.closest(sel);if(b){if(confirm("Excluir este registro?")){saveJSON(key,getter().filter(x=>x.id!==b.dataset[dataKey]));renderer()}return}}
-  const action=event.target.closest("[data-action]");if(action){switch(action.dataset.action){case"export":exportBackup();break;case"import":importInput.click();break;case"clear":clearData();break;case"self-test":runSelfTest();break;case"library-add-files":addLibraryFiles();break;case"library-add-folder":addLibraryFolder();break;case"library-refresh":refreshLibraryFolders();break;case"library-reconnect":reconnectLibraryPermissions();break;case"library-more":libraryState.limit+=60;renderLibrary();break;case"check-all":{const a=getChecklist();a.forEach(i=>i.done=true);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"uncheck-all":{const a=getChecklist();a.forEach(i=>i.done=false);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"clear-done":{const a=getChecklist(),done=a.filter(i=>i.done).length;if(done&&confirm(`Excluir ${done} item(ns) concluído(s)?`)){saveJSON(STORAGE.checklist,a.filter(i=>!i.done));renderChecklist()}break}case"toggle-text":{const st=getSettings();st.textLarge=!st.textLarge;saveJSON(STORAGE.settings,st);applySettings();renderMore();break}case"reset-home-settings":{const st=getSettings();st.home=normalizeHomeSettings(null);saveJSON(STORAGE.settings,st);showToast("Tela inicial restaurada");renderHomeSettings();break}case"repair-home-settings":{const st=getSettings();st.home=normalizeHomeSettings(DEFAULT_HOME_SETTINGS);saveJSON(STORAGE.settings,st);showToast("Tela inicial corrigida");renderView("home");break}case"start-compass":startCompass();break;case"stop-compass":stopCompass();const n=document.getElementById("compassNote");if(n)n.textContent="Sensor parado.";break}}
+  const action=event.target.closest("[data-action]");if(action){switch(action.dataset.action){case"export":exportBackup();break;case"import":importInput.click();break;case"clear":clearData();break;case"self-test":runSelfTest();break;case"library-add-files":addLibraryFiles();break;case"library-add-folder":addLibraryFolder();break;case"library-refresh":refreshLibraryFolders();break;case"library-reconnect":reconnectLibraryPermissions();break;case"library-more":libraryState.limit+=60;renderLibrary();break;case"check-all":{const a=getChecklist();a.forEach(i=>i.done=true);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"uncheck-all":{const a=getChecklist();a.forEach(i=>i.done=false);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"clear-done":{const a=getChecklist(),done=a.filter(i=>i.done).length;if(done&&confirm(`Excluir ${done} item(ns) concluído(s)?`)){saveJSON(STORAGE.checklist,a.filter(i=>!i.done));renderChecklist()}break}case"toggle-text":{const st=getSettings();st.textLarge=!st.textLarge;saveJSON(STORAGE.settings,st);applySettings();renderMore();break}case"reset-home-settings":{let st={textLarge:false,home:normalizeHomeSettings(DEFAULT_HOME_SETTINGS)};try{const current=loadJSON(STORAGE.settings,{});if(current&&typeof current==="object"&&!Array.isArray(current))st.textLarge=!!current.textLarge}catch{}saveJSON(STORAGE.settings,st);showToast("Tela inicial restaurada");renderHomeSettings();break}case"repair-home-settings":{let st={textLarge:false,home:normalizeHomeSettings(DEFAULT_HOME_SETTINGS)};try{const current=loadJSON(STORAGE.settings,{});if(current&&typeof current==="object"&&!Array.isArray(current))st.textLarge=!!current.textLarge}catch{}saveJSON(STORAGE.settings,st);showToast("Tela inicial restaurada");renderView("home");break}case"start-compass":startCompass();break;case"stop-compass":stopCompass();const n=document.getElementById("compassNote");if(n)n.textContent="Sensor parado.";break}}
 });
 view.addEventListener("input",e=>{if(e.target.id==="emergencySearch"){const box=document.getElementById("emergencyList");if(box)box.innerHTML=renderEmergencyList(searchEmergencies(e.target.value));return}if(e.target.id==="librarySearch"){libraryState.query=e.target.value;libraryState.limit=60;clearTimeout(e.target._libTimer);e.target._libTimer=setTimeout(()=>renderLibrary(),180);return}if(e.target.id==="globalSearch"){clearTimeout(e.target._globalTimer);const value=e.target.value;e.target._globalTimer=setTimeout(()=>runGlobalSearch(value),120)}});
 view.addEventListener("change",e=>{if(e.target.id==="libraryCategory"){libraryState.category=e.target.value;libraryState.limit=60;renderLibrary();return}if(e.target.id==="librarySort"){libraryState.sort=e.target.value;libraryState.limit=60;renderLibrary();return}const c=e.target.closest("[data-check]");if(!c)return;const items=getChecklist(),i=items.find(x=>x.id===c.dataset.check);if(i){i.done=c.checked;saveJSON(STORAGE.checklist,items);renderChecklist()}});
