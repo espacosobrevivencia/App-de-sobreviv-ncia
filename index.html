@@ -116,9 +116,9 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
   <script>
 "use strict";
 
-const APP_VERSION = "3.3.4";
+const APP_VERSION = "3.3.5";
 const CURRENT_SCHEMA = 6;
-const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.4";
+const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.5";
 const CORE_FILES = ["./index.html","./manifest.json","./icone.png"];
 const STORAGE = {
   schema: "sobrevivencia_schema_v1",
@@ -748,6 +748,52 @@ function renderMore(){const settings=getSettings();view.innerHTML=`${pageHeader(
 </section>
 
 <div class="card-grid">${MODULES.filter(m=>!["checklist","calculadoras"].includes(m[0])).map(m=>resourceCard(m[0],m[1],m[2],m[3])).join("")}</div>`}
+
+
+function renderSources(){
+  view.innerHTML=`
+    ${pageHeader(
+      "ℹ️",
+      "Fontes e limites",
+      "O app prioriza consulta rápida; orientação profissional e protocolos oficiais têm prioridade."
+    )}
+
+    <section class="panel">
+      <h2>Limites</h2>
+      <ul class="protocol">
+        <li>Não substitui médico, SAMU, bombeiro, Defesa Civil ou treinamento técnico.</li>
+        <li>Não calcula dose química para tratamento de água.</li>
+        <li>Não certifica nó, corda ou ancoragem.</li>
+        <li>Bússola e GPS podem ter erro; confirme por meios redundantes.</li>
+        <li>Cálculos ambientais e de energia são estimativas.</li>
+        <li>A Biblioteca Offline depende das permissões de arquivo oferecidas pelo navegador; o fallback pode exigir nova seleção após reiniciar.</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>Revisão de segurança</h2>
+      <ul class="protocol">
+        <li>Ministério da Saúde — SAMU 192 e orientações de urgência.</li>
+        <li>Protocolos SAMU 192 — controle de hemorragia externa por compressão direta.</li>
+        <li>Ministério da Saúde / Biblioteca Virtual em Saúde — queimaduras.</li>
+        <li>Ministério da Saúde / PCDT de acidentes ofídicos — picadas de serpentes.</li>
+        <li>Ministério da Saúde — cuidados com a água em enchentes e calamidades.</li>
+      </ul>
+      <div class="notice">
+        As referências servem para revisão do conteúdo; o funcionamento crítico do app não depende de internet.
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Biblioteca Offline</h2>
+      <p>
+        Arquivos selecionados são lidos localmente. Handles e metadados podem ficar no IndexedDB;
+        fotos, vídeos e PDFs não são colocados no localStorage, no precache do Service Worker
+        nem dentro do backup JSON.
+      </p>
+    </section>
+  `;
+}
 
 function backupPayload(){return {app:"Sobrevivência Offline",version:APP_VERSION,schema:CURRENT_SCHEMA,created:new Date().toISOString(),checklist:getChecklist(),contacts:getContacts(),plan:getPlan(),favorites:getFavorites(),lastPosition:getLastPosition(),ice:getICE(),journal:getJournal(),inventory:getInventory(),maintenance:getMaintenance(),resources:getResources(),settings:getSettings()}}
 function renderData(){const bm=getBackupMeta();view.innerHTML=`${pageHeader("💾","Backup e autoteste","Confirme se o app está realmente pronto para funcionar sem rede e mantenha um backup local.")}<section class="panel priority-panel"><h2>Autoteste offline</h2><button class="btn primary full" data-action="self-test">Executar teste completo</button><div id="selfTestResult" style="margin-top:10px"></div></section><section class="panel"><h2>Versão instalada</h2><div class="status-line"><span>Aplicativo</span><span class="pill">V${APP_VERSION}</span></div><div class="status-line"><span>Schema de dados</span><span class="pill">V${CURRENT_SCHEMA}</span></div><div class="status-line"><span>Cache esperado</span><span class="pill">${EXPECTED_CACHE}</span></div></section><section class="panel"><h2>Estado dos dados</h2><div class="status-line"><span>Checklist</span><span class="pill">${getChecklist().length}</span></div><div class="status-line"><span>Contatos</span><span class="pill">${getContacts().length}</span></div><div class="status-line"><span>Diário</span><span class="pill">${getJournal().length}</span></div><div class="status-line"><span>Estoque</span><span class="pill">${getInventory().length}</span></div><div class="status-line"><span>Biblioteca (metadados)</span><span id="libraryDataCount" class="pill">…</span></div></section><section class="panel"><h2>Backup completo</h2><p>A importação é parcial por campo: campos presentes e válidos substituem os correspondentes; campos ausentes preservam o que já existe. Registros inválidos são ignorados individualmente.</p><div class="notice"><strong>Biblioteca:</strong> o backup guarda apenas nome, tipo, tags, categoria e outros metadados. O conteúdo de fotos, vídeos e PDFs e as permissões/handles do aparelho não entram no JSON.</div>${bm?`<div class="backup-meta"><strong>Último backup exportado</strong><small>${formatWhen(bm.created)} · app ${escapeHTML(bm.version)} · schema ${escapeHTML(bm.schema)}</small></div>`:""}<div class="btn-row"><button class="btn primary" data-action="export">Exportar</button><button class="btn" data-action="import">Importar</button></div></section><section class="panel"><h2>Limpar tudo</h2><p>Apaga dados e índice da Biblioteca, mas nunca apaga os arquivos originais escolhidos no Android.</p><button class="btn danger" data-action="clear">Apagar dados locais</button></section>`;setTimeout(updateLibraryDataCount,0)}

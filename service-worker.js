@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "sobrevivencia-offline-v";
-const CACHE_NAME = "sobrevivencia-offline-v3.3.4";
+const CACHE_NAME = "sobrevivencia-offline-v3.3.5";
 
 // Somente o shell da PWA entra no cache. Arquivos escolhidos pelo usuário
 // na Biblioteca Offline (fotos, vídeos, PDFs etc.) NUNCA entram aqui.
