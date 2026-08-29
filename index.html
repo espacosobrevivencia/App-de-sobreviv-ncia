@@ -57,6 +57,9 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
 @media(prefers-reduced-motion:reduce){.library-image-stage img{transition:none}}
 .library-file-icon{font-size:38px}.library-play-badge{position:absolute;right:7px;bottom:6px;font-size:14px;color:#fff;text-shadow:0 1px 4px #000}.library-card-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:start}.library-name{min-width:0;padding:0;border:0;background:transparent;color:var(--text);font-weight:800;text-align:left;line-height:1.25;word-break:break-word}.library-star{width:34px;height:34px;border:0;border-radius:10px;background:#080808;color:#777;font-size:20px}.library-star.active{color:var(--warning)}.library-path{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tag-row{display:flex;flex-wrap:wrap;gap:4px}.tag-row span{display:inline-flex;max-width:100%;padding:3px 6px;border:1px solid #242424;border-radius:999px;background:#050505;color:#aaa;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.btn.compact{min-height:38px;padding:0 8px;font-size:11px}.library-pdf{display:block;width:100%;height:68vh;border:1px solid #191919;border-radius:14px;background:#111}
 
+
+.home-config-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #171717}.home-config-row:last-child{border-bottom:0}.home-config-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:#050505;font-size:21px}.home-config-info{min-width:0}.home-config-info strong,.home-config-info small{display:block}.home-config-info small{margin-top:3px;color:var(--muted);font-size:11px;line-height:1.3}.home-config-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}.visibility-button{min-width:72px;height:36px;padding:0 9px;border:1px solid #4a2626;border-radius:10px;background:#120505;color:#d89a9a;font-size:10px;font-weight:900}.visibility-button.on{border-color:#24563a;background:#07160e;color:var(--accent)}.mini-button:disabled{opacity:.25;cursor:not-allowed}.danger-mini{color:#ff9c9c;border-color:#4a2020}.home-add-quick{margin-top:14px;padding-top:12px;border-top:1px solid #171717}.settings-entry{width:100%;min-height:62px;padding:8px 0;border:0;background:transparent;color:var(--text);display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left}.settings-entry>span{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:#050505;font-size:21px}.settings-entry strong,.settings-entry small{display:block}.settings-entry small{margin-top:3px;color:var(--muted);font-size:11px}.settings-entry>b{font-size:24px;color:#555}.settings-row-divider{padding-top:10px;margin-top:8px;border-top:1px solid #171717}.home-empty .btn{margin-top:10px}.home-editor-list{display:flex;flex-direction:column}@media(max-width:480px){.home-config-row{grid-template-columns:38px minmax(0,1fr)}.home-config-icon{width:38px;height:38px}.home-config-actions{grid-column:1/-1;justify-content:flex-end;padding-left:48px}.visibility-button{min-width:82px}}
+
 </style>
 </head>
 <body>
@@ -97,9 +100,9 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
   <script>
 "use strict";
 
-const APP_VERSION = "3.2.3";
-const CURRENT_SCHEMA = 5;
-const EXPECTED_CACHE = "sobrevivencia-offline-v3.2.3";
+const APP_VERSION = "3.3.0";
+const CURRENT_SCHEMA = 6;
+const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.0";
 const CORE_FILES = ["./index.html","./manifest.json","./icone.png"];
 const STORAGE = {
   schema: "sobrevivencia_schema_v1",
@@ -257,6 +260,60 @@ const MODULES = [
   ["fontes","ℹ️","Fontes e limites","Uso seguro do aplicativo."]
 ];
 
+
+const HOME_SECTION_DEFS = [
+  ["emergencyCalls","📞","Emergência Brasil","Telefones 190, 192, 193 e 199"],
+  ["emergencyMode","🆘","Modo Emergência","Atalho para os protocolos críticos"],
+  ["position","📍","Minha posição","GPS e última posição conhecida"],
+  ["alerts","⚠️","Avisos","Estoque, validade e manutenção"],
+  ["quickAccess","⚡","Acesso rápido","Seus módulos escolhidos"],
+  ["favorites","⭐","Favoritos","Emergências e módulos favoritados"],
+  ["more","☰","Todos os recursos","Atalho para a tela Mais"]
+];
+
+const DEFAULT_HOME_SETTINGS = {
+  sectionOrder: HOME_SECTION_DEFS.map(item => item[0]),
+  hiddenSections: [],
+  quickAccess: ["agua","checklist","energia","navegacao"]
+};
+
+function normalizeHomeSettings(value){
+  const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const validSections = new Set(HOME_SECTION_DEFS.map(item => item[0]));
+  const validModules = new Set(MODULES.map(item => item[0]));
+
+  const order = [];
+  const sourceOrder = Array.isArray(raw.sectionOrder) ? raw.sectionOrder : DEFAULT_HOME_SETTINGS.sectionOrder;
+  for(const id of sourceOrder){
+    if(validSections.has(id) && !order.includes(id)) order.push(id);
+  }
+  for(const id of DEFAULT_HOME_SETTINGS.sectionOrder){
+    if(!order.includes(id)) order.push(id);
+  }
+
+  const hidden = Array.isArray(raw.hiddenSections)
+    ? [...new Set(raw.hiddenSections.filter(id => validSections.has(id)))]
+    : [];
+
+  const quick = [];
+  const sourceQuick = Array.isArray(raw.quickAccess) ? raw.quickAccess : DEFAULT_HOME_SETTINGS.quickAccess;
+  for(const id of sourceQuick){
+    if(validModules.has(id) && !quick.includes(id)) quick.push(id);
+  }
+
+  return {sectionOrder:order, hiddenSections:hidden, quickAccess:quick};
+}
+
+function homeSectionInfo(id){
+  const item = HOME_SECTION_DEFS.find(section => section[0] === id);
+  return item ? {id:item[0],icon:item[1],title:item[2],description:item[3]} : null;
+}
+
+function moduleInfo(id){
+  const item = MODULES.find(module => module[0] === id);
+  return item ? {id:item[0],icon:item[1],title:item[2],description:item[3]} : null;
+}
+
 const SEARCH_ALIASES = {
   apagao:"energia luz sem luz queda energia blackout eletricidade",
   enchente:"alagamento inundacao agua chuva cheia",
@@ -316,7 +373,7 @@ function getJournal(){const v=loadJSON(STORAGE.journal,[]);return Array.isArray(
 function getInventory(){const v=loadJSON(STORAGE.inventory,[]);return Array.isArray(v)?v:[]}
 function getMaintenance(){const v=loadJSON(STORAGE.maintenance,[]);return Array.isArray(v)?v:[]}
 function getResources(){const v=loadJSON(STORAGE.resources,[]);return Array.isArray(v)?v:[]}
-function getSettings(){return Object.assign({textLarge:false},loadJSON(STORAGE.settings,{}))}
+function getSettings(){const raw=loadJSON(STORAGE.settings,{});return {textLarge:!!raw.textLarge,home:normalizeHomeSettings(raw.home)}}
 function getBackupMeta(){const v=loadJSON(STORAGE.backupMeta,null);return v&&typeof v==="object"&&!Array.isArray(v)?v:null}
 function migrateData(){
   getChecklist(); getContacts(); saveJSON(STORAGE.plan,getPlan());
@@ -327,6 +384,44 @@ function migrateData(){
   localStorage.setItem(STORAGE.schema,String(CURRENT_SCHEMA));
 }
 function applySettings(){document.body.classList.toggle("text-large",!!getSettings().textLarge)}
+function saveHomeSettings(home){
+  const settings=getSettings();
+  settings.home=normalizeHomeSettings(home);
+  saveJSON(STORAGE.settings,settings);
+  return settings.home;
+}
+function moveItem(list,id,direction){
+  const copy=[...list],index=copy.indexOf(id),next=index+direction;
+  if(index<0||next<0||next>=copy.length)return copy;
+  [copy[index],copy[next]]=[copy[next],copy[index]];
+  return copy;
+}
+function setHomeSectionVisibility(id,visible){
+  const home=getSettings().home,hidden=new Set(home.hiddenSections);
+  visible?hidden.delete(id):hidden.add(id);
+  home.hiddenSections=[...hidden];
+  saveHomeSettings(home);
+}
+function moveHomeSection(id,direction){
+  const home=getSettings().home;
+  home.sectionOrder=moveItem(home.sectionOrder,id,direction);
+  saveHomeSettings(home);
+}
+function moveQuickAccess(id,direction){
+  const home=getSettings().home;
+  home.quickAccess=moveItem(home.quickAccess,id,direction);
+  saveHomeSettings(home);
+}
+function removeQuickAccess(id){
+  const home=getSettings().home;
+  home.quickAccess=home.quickAccess.filter(item=>item!==id);
+  saveHomeSettings(home);
+}
+function addQuickAccess(id){
+  const home=getSettings().home;
+  if(MODULES.some(item=>item[0]===id)&&!home.quickAccess.includes(id))home.quickAccess.push(id);
+  saveHomeSettings(home);
+}
 function showToast(message){clearTimeout(toastTimer);toast.textContent=message;toast.hidden=false;toastTimer=setTimeout(()=>toast.hidden=true,2400)}
 function openModal(title,html){modalTitle.textContent=title;modalBody.innerHTML=html;modal.hidden=false;document.body.style.overflow="hidden"}
 function closeModal(){cleanupLibraryViewerUrls();modal.hidden=true;modalBody.innerHTML="";document.body.style.overflow=""}
@@ -350,15 +445,84 @@ function maintenanceStatus(item){const dd=daysFromToday(item.due);return {due:dd
 function getAttentionCount(){return getInventory().filter(i=>{const s=inventoryStatus(i);return s.low||s.expired||s.expiring}).length+getMaintenance().filter(i=>{const s=maintenanceStatus(i);return s.due||s.soon}).length}
 function lastPositionHTML(compact=false){const p=getLastPosition();if(!p||!Number.isFinite(Number(p.lat))||!Number.isFinite(Number(p.lon)))return `<div class="last-location"><small>Nenhuma posição salva ainda.</small></div>`;const lat=Number(p.lat),lon=Number(p.lon),accuracy=Math.max(0,Number(p.accuracy)||0),text=`${lat.toFixed(6)}, ${lon.toFixed(6)}`,share=`📍 Localização: ${text} | Precisão aproximada: ±${Math.round(accuracy)} m | Horário: ${formatWhen(p.timestamp)}`,geo=`geo:${lat},${lon}?q=${lat},${lon}`;return `<div class="last-location"><div class="position-detail-grid"><div><small>Latitude</small><strong class="coord">${lat.toFixed(6)}</strong></div><div><small>Longitude</small><strong class="coord">${lon.toFixed(6)}</strong></div><div><small>Precisão</small><strong>±${Math.round(accuracy)} m</strong></div><div><small>Horário</small><strong>${formatWhen(p.timestamp)}</strong></div></div>${compact?"":`<div class="btn-row"><button class="btn" data-copy="${escapeHTML(text)}">Copiar</button><button class="btn" data-share="${escapeHTML(share)}">Compartilhar</button><a class="btn link-btn" href="${geo}">Abrir no mapa</a></div>`}</div>`}
 
-function renderHome(){const attention=getAttentionCount();view.innerHTML=`
-  <div class="emergency-now"><div class="emergency-now-head"><span>EMERGÊNCIA BRASIL</span><small>1 toque</small></div>${bigEmergencyCalls()}</div>
-  <button class="home-main-sos" data-nav="modo-emergencia"><span>🆘</span> MODO EMERGÊNCIA</button>
-  <button class="home-position" data-nav="navegacao"><div><b>📍 MINHA POSIÇÃO</b><small>${getLastPosition()?"Última posição salva disponível":"Toque para obter coordenadas"}</small></div><span>›</span></button>
-  ${attention?`<button class="alert-strip" data-nav="estoque"><span><strong>⚠️ ${attention} aviso(s)</strong><br><small>Estoque, validade ou manutenção</small></span><b>›</b></button>`:""}
-  <div class="section-title"><h2>Acesso rápido</h2><span>offline</span></div>
-  <div class="home-core">${resourceCard("agua","💧","Água","Reserva e tratamento")}${resourceCard("checklist","🎒","Checklist","Kit e preparo")}${resourceCard("energia","🔋","Energia","Bateria e power bank")}${resourceCard("navegacao","🧭","Navegação","GPS e orientação")}</div>
-  ${favoritesHTML()}
-  <button class="wide-more" data-nav="mais"><span>☰</span><div><strong>Todos os recursos</strong><small>ICE, diário, estoque, abrigo, comunicação, calculadoras e mais</small></div><b>›</b></button>`}
+function homeSectionHTML(id,home,attention){
+  if(id==="emergencyCalls")return `<div class="emergency-now"><div class="emergency-now-head"><span>EMERGÊNCIA BRASIL</span><small>1 toque</small></div>${bigEmergencyCalls()}</div>`;
+  if(id==="emergencyMode")return `<button class="home-main-sos" data-nav="modo-emergencia"><span>🆘</span> MODO EMERGÊNCIA</button>`;
+  if(id==="position")return `<button class="home-position" data-nav="navegacao"><div><b>📍 MINHA POSIÇÃO</b><small>${getLastPosition()?"Última posição salva disponível":"Toque para obter coordenadas"}</small></div><span>›</span></button>`;
+  if(id==="alerts")return attention?`<button class="alert-strip" data-nav="estoque"><span><strong>⚠️ ${attention} aviso(s)</strong><br><small>Estoque, validade ou manutenção</small></span><b>›</b></button>`:"";
+  if(id==="quickAccess"){
+    const items=home.quickAccess.map(moduleInfo).filter(Boolean);
+    return `<div class="section-title"><h2>Acesso rápido</h2><span>${items.length} atalho(s)</span></div>${items.length?`<div class="home-core">${items.map(item=>resourceCard(item.id,item.icon,item.title,item.description)).join("")}</div>`:`<div class="empty home-empty">Nenhum acesso rápido configurado.<br><button class="btn" data-nav="personalizar-home">Configurar</button></div>`}`;
+  }
+  if(id==="favorites")return favoritesHTML();
+  if(id==="more")return `<button class="wide-more" data-nav="mais"><span>☰</span><div><strong>Todos os recursos</strong><small>ICE, diário, estoque, abrigo, comunicação, calculadoras e mais</small></div><b>›</b></button>`;
+  return "";
+}
+
+function renderHome(){
+  const attention=getAttentionCount(),home=getSettings().home,hidden=new Set(home.hiddenSections);
+  view.innerHTML=home.sectionOrder.filter(id=>!hidden.has(id)).map(id=>homeSectionHTML(id,home,attention)).join("")||`<div class="empty"><strong>Tela inicial sem blocos.</strong><br><small>Use Mais → Personalizar tela inicial para restaurar ou adicionar itens.</small></div>`;
+}
+
+function renderHomeSettings(){
+  const settings=getSettings(),home=settings.home,hidden=new Set(home.hiddenSections);
+  const available=MODULES.filter(item=>!home.quickAccess.includes(item[0]));
+  view.innerHTML=`
+    ${pageHeader("🏠","Personalizar tela inicial","Escolha o que aparece, a ordem dos blocos e quais módulos ficam em Acesso rápido.")}
+    <section class="panel priority-panel">
+      <h2>Visual da Home</h2>
+      <p>As alterações ficam salvas neste aparelho e entram no backup. A barra inferior continua disponível mesmo se você ocultar atalhos da Home.</p>
+      <div class="btn-row">
+        <button class="btn primary" data-nav="home">Ver tela inicial</button>
+        <button class="btn" data-action="reset-home-settings">Restaurar padrão</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Ordem e visibilidade</h2>
+      <p>Use ↑ e ↓ para mudar a posição. Você pode ocultar qualquer bloco.</p>
+      <div class="home-editor-list">
+        ${home.sectionOrder.map((id,index)=>{
+          const info=homeSectionInfo(id);if(!info)return "";
+          const visible=!hidden.has(id);
+          return `<div class="home-config-row">
+            <div class="home-config-icon">${info.icon}</div>
+            <div class="home-config-info"><strong>${info.title}</strong><small>${info.description}</small></div>
+            <div class="home-config-actions">
+              <button class="mini-button" data-home-section-move="-1" data-home-section-id="${id}" ${index===0?"disabled":""} aria-label="Subir ${info.title}">↑</button>
+              <button class="mini-button" data-home-section-move="1" data-home-section-id="${id}" ${index===home.sectionOrder.length-1?"disabled":""} aria-label="Descer ${info.title}">↓</button>
+              <button class="visibility-button ${visible?"on":""}" data-home-section-toggle="${id}">${visible?"VISÍVEL":"OCULTO"}</button>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>⚡ Acesso rápido</h2>
+      <p>Escolha exatamente quais módulos aparecem nesse bloco e a ordem deles. Não há limite artificial; muitos atalhos apenas deixam a Home mais longa.</p>
+      <div class="home-editor-list">
+        ${home.quickAccess.length?home.quickAccess.map((id,index)=>{
+          const info=moduleInfo(id);if(!info)return "";
+          return `<div class="home-config-row quick-config-row">
+            <div class="home-config-icon">${info.icon}</div>
+            <div class="home-config-info"><strong>${info.title}</strong><small>${info.description}</small></div>
+            <div class="home-config-actions">
+              <button class="mini-button" data-quick-move="-1" data-quick-id="${id}" ${index===0?"disabled":""} aria-label="Subir ${info.title}">↑</button>
+              <button class="mini-button" data-quick-move="1" data-quick-id="${id}" ${index===home.quickAccess.length-1?"disabled":""} aria-label="Descer ${info.title}">↓</button>
+              <button class="mini-button danger-mini" data-quick-remove="${id}" aria-label="Remover ${info.title}">✕</button>
+            </div>
+          </div>`;
+        }).join(""):`<div class="empty">Nenhum módulo no Acesso rápido.</div>`}
+      </div>
+      ${available.length?`<form id="homeQuickAddForm" class="home-add-quick"><div class="field"><label>Adicionar módulo</label><select name="module">${available.map(item=>`<option value="${item[0]}">${item[1]} ${item[2]}</option>`).join("")}</select></div><button class="btn primary full" type="submit">＋ Adicionar ao Acesso rápido</button></form>`:`<div class="notice">Todos os módulos já estão no Acesso rápido.</div>`}
+    </section>
+
+    <section class="panel">
+      <h2>Segurança da configuração</h2>
+      <p>Se você ocultar Emergência Brasil ou Modo Emergência, eles continuarão acessíveis pela navegação e pela tela de recursos. O botão “Restaurar padrão” recupera a organização original em um toque.</p>
+    </section>`;
+}
 
 const CRITICAL_IDS=["inconsciente","hemorragia","incendio","enchente","transito","perdido","cobra","queimadura","desidratacao","insolacao"];
 function renderEmergencyMode(){const critical=CRITICAL_IDS.map(id=>EMERGENCIES.find(e=>e.id===id)).filter(Boolean);view.innerHTML=`${pageHeader("🆘","Modo Emergência","Ações essenciais primeiro. Sem elementos secundários.")}<div class="emergency-now">${bigEmergencyCalls()}</div><section class="panel priority-panel"><h2>📍 Última posição conhecida</h2>${lastPositionHTML()}<button class="btn primary full" data-gps="emergency">Atualizar posição agora</button><div id="emergencyGpsResult" class="result" hidden></div></section><div class="critical-action-grid">${critical.map(e=>`<button class="critical-action" data-emergency="${e.id}"><span>${e.icon}</span><strong>${e.title}</strong><small>${e.summary}</small></button>`).join("")}</div><button class="wide-more" data-nav="emergencias"><span>🔎</span><div><strong>Todas as emergências</strong><small>Buscar outros protocolos</small></div><b>›</b></button>`}
@@ -444,14 +608,23 @@ async function importLibraryMetadata(snapshot){if(!snapshot?.items?.length)retur
 async function updateLibraryDataCount(){const el=document.getElementById("libraryDataCount");if(!el)return;try{const items=await libraryGetAll("items");el.textContent=String(items.length)}catch{el.textContent="—"}}
 async function librarySearchResults(query){const q=normalizeText(query);if(!q)return [];try{const items=await libraryGetAll("items");return items.filter(i=>normalizeText(`${i.name} ${i.category||""} ${(i.tags||[]).join(" ")} ${i.relativePath||""}`).includes(q)).slice(0,8).map(i=>({type:"library",id:i.id,icon:libraryKindIcon(i.kind),title:i.name,description:`Biblioteca · ${i.category||"Geral"} · ${formatBytes(i.size)}`}))}catch{return []}}
 async function runGlobalSearch(query){const box=document.getElementById("globalSearchResults");if(!box)return;const seq=++globalSearchSequence,q=normalizeText(query);if(!q){box.innerHTML="";return}const core=searchDatabase().filter(i=>i.keywords.includes(q)).slice(0,10),lib=await librarySearchResults(query);if(seq!==globalSearchSequence||!document.getElementById("globalSearchResults"))return;const merged=[...core,...lib].slice(0,14);box.innerHTML=merged.length?merged.map(i=>`<button class="search-result" data-global-result="${i.type}" data-global-id="${i.id}">${i.icon} <strong>${escapeHTML(i.title)}</strong><small>${escapeHTML(i.description)}</small></button>`).join(""):`<div class="empty">Nenhum resultado local.</div>`}
-function renderMore(){const settings=getSettings();view.innerHTML=`${pageHeader("☰","Todos os recursos","Completo por dentro, mas organizado para você não procurar demais em uma emergência.")}<section class="panel"><div class="search-wrapper"><span>⌕</span><input id="globalSearch" class="search" type="search" placeholder="Buscar água, fogo, corda, bateria, PDF…"></div><div id="globalSearchResults" class="search-results"></div></section><section class="panel"><div class="setting-row"><div><strong>🔠 Texto grande</strong><div class="meta">Aumenta fontes e controles</div></div><button class="toggle ${settings.textLarge?"on":""}" data-action="toggle-text">${settings.textLarge?"ATIVO":"NORMAL"}</button></div></section><div class="card-grid">${MODULES.filter(m=>!["checklist","calculadoras"].includes(m[0])).map(m=>resourceCard(m[0],m[1],m[2],m[3])).join("")}</div>`}
-function renderSources(){view.innerHTML=`${pageHeader("ℹ️","Fontes e limites","O app prioriza consulta rápida; orientação profissional e protocolos oficiais têm prioridade.")}<section class="panel"><h2>Limites</h2><ul class="protocol"><li>Não substitui médico, SAMU, bombeiro, Defesa Civil ou treinamento técnico.</li><li>Não calcula dose química para tratamento de água.</li><li>Não certifica nó, corda ou ancoragem.</li><li>Bússola e GPS podem ter erro; confirme por meios redundantes.</li><li>Cálculos ambientais e de energia são estimativas.</li><li>A Biblioteca Offline depende das permissões de arquivo oferecidas pelo navegador; o fallback pode exigir nova seleção após reiniciar.</li></ul></section><section class="panel"><h2>Revisão de segurança V3.2</h2><ul class="protocol"><li>Ministério da Saúde — SAMU 192 e orientações de urgência.</li><li>Protocolos SAMU 192 — controle de hemorragia externa por compressão direta.</li><li>Ministério da Saúde / Biblioteca Virtual em Saúde — queimaduras.</li><li>Ministério da Saúde / PCDT de acidentes ofídicos — picadas de serpentes.</li><li>Ministério da Saúde — cuidados com a água em enchentes e calamidades.</li></ul><div class="notice">As referências servem para revisão do conteúdo; o funcionamento crítico do app não depende de internet.</div></section><section class="panel"><h2>Biblioteca Offline</h2><p>Arquivos selecionados são lidos localmente. Handles e metadados podem ficar no IndexedDB; fotos, vídeos e PDFs não são colocados no localStorage, no precache do Service Worker nem dentro do backup JSON.</p></section>`}
+function renderMore(){const settings=getSettings();view.innerHTML=`${pageHeader("☰","Todos os recursos","Completo por dentro, mas organizado para você não procurar demais em uma emergência.")}
+<section class="panel"><div class="search-wrapper"><span>⌕</span><input id="globalSearch" class="search" type="search" placeholder="Buscar água, fogo, corda, bateria, PDF…"></div><div id="globalSearchResults" class="search-results"></div></section>
+<section class="panel">
+  <button class="settings-entry" data-nav="personalizar-home">
+    <span>🏠</span>
+    <div><strong>Personalizar tela inicial</strong><small>Escolher blocos, ordem e acessos rápidos</small></div>
+    <b>›</b>
+  </button>
+  <div class="setting-row settings-row-divider"><div><strong>🔠 Texto grande</strong><div class="meta">Aumenta fontes e controles</div></div><button class="toggle ${settings.textLarge?"on":""}" data-action="toggle-text">${settings.textLarge?"ATIVO":"NORMAL"}</button></div>
+</section>
+<div class="card-grid">${MODULES.filter(m=>!["checklist","calculadoras"].includes(m[0])).map(m=>resourceCard(m[0],m[1],m[2],m[3])).join("")}</div>`}
 
 function backupPayload(){return {app:"Sobrevivência Offline",version:APP_VERSION,schema:CURRENT_SCHEMA,created:new Date().toISOString(),checklist:getChecklist(),contacts:getContacts(),plan:getPlan(),favorites:getFavorites(),lastPosition:getLastPosition(),ice:getICE(),journal:getJournal(),inventory:getInventory(),maintenance:getMaintenance(),resources:getResources(),settings:getSettings()}}
 function renderData(){const bm=getBackupMeta();view.innerHTML=`${pageHeader("💾","Backup e autoteste","Confirme se o app está realmente pronto para funcionar sem rede e mantenha um backup local.")}<section class="panel priority-panel"><h2>Autoteste offline</h2><button class="btn primary full" data-action="self-test">Executar teste completo</button><div id="selfTestResult" style="margin-top:10px"></div></section><section class="panel"><h2>Versão instalada</h2><div class="status-line"><span>Aplicativo</span><span class="pill">V${APP_VERSION}</span></div><div class="status-line"><span>Schema de dados</span><span class="pill">V${CURRENT_SCHEMA}</span></div><div class="status-line"><span>Cache esperado</span><span class="pill">${EXPECTED_CACHE}</span></div></section><section class="panel"><h2>Estado dos dados</h2><div class="status-line"><span>Checklist</span><span class="pill">${getChecklist().length}</span></div><div class="status-line"><span>Contatos</span><span class="pill">${getContacts().length}</span></div><div class="status-line"><span>Diário</span><span class="pill">${getJournal().length}</span></div><div class="status-line"><span>Estoque</span><span class="pill">${getInventory().length}</span></div><div class="status-line"><span>Biblioteca (metadados)</span><span id="libraryDataCount" class="pill">…</span></div></section><section class="panel"><h2>Backup completo</h2><p>A importação é parcial por campo: campos presentes e válidos substituem os correspondentes; campos ausentes preservam o que já existe. Registros inválidos são ignorados individualmente.</p><div class="notice"><strong>Biblioteca:</strong> o backup guarda apenas nome, tipo, tags, categoria e outros metadados. O conteúdo de fotos, vídeos e PDFs e as permissões/handles do aparelho não entram no JSON.</div>${bm?`<div class="backup-meta"><strong>Último backup exportado</strong><small>${formatWhen(bm.created)} · app ${escapeHTML(bm.version)} · schema ${escapeHTML(bm.schema)}</small></div>`:""}<div class="btn-row"><button class="btn primary" data-action="export">Exportar</button><button class="btn" data-action="import">Importar</button></div></section><section class="panel"><h2>Limpar tudo</h2><p>Apaga dados e índice da Biblioteca, mas nunca apaga os arquivos originais escolhidos no Android.</p><button class="btn danger" data-action="clear">Apagar dados locais</button></section>`;setTimeout(updateLibraryDataCount,0)}
 
 function stopCompass(){if(compassHandler&&compassEventName)window.removeEventListener(compassEventName,compassHandler,true);compassHandler=null;compassEventName=null}
-function renderView(name){if(currentViewName==="biblioteca"&&name!=="biblioteca")cleanupLibraryThumbUrls();cleanupLibraryViewerUrls();stopCompass();currentViewName=name;const map={home:renderHome,"modo-emergencia":renderEmergencyMode,emergencias:renderEmergencies,agua:renderWater,abrigo:renderShelter,nos:renderKnots,navegacao:renderNavigation,energia:renderEnergy,comunicacao:renderCommunication,checklist:renderChecklist,calculadoras:renderCalculators,contatos:renderContacts,plano:renderPlan,ice:renderICE,diario:renderJournal,estoque:renderInventory,manutencao:renderMaintenance,recursos:renderResources,biblioteca:renderLibrary,dados:renderData,fontes:renderSources,mais:renderMore};(map[name]||renderHome)();const more=["agua","abrigo","nos","navegacao","energia","comunicacao","contatos","plano","ice","diario","estoque","manutencao","recursos","biblioteca","dados","fontes"];document.querySelectorAll(".nav-button").forEach(b=>b.classList.toggle("active",b.dataset.nav===name||(b.dataset.nav==="mais"&&more.includes(name))));window.scrollTo(0,0)}
+function renderView(name){if(currentViewName==="biblioteca"&&name!=="biblioteca")cleanupLibraryThumbUrls();cleanupLibraryViewerUrls();stopCompass();currentViewName=name;const map={home:renderHome,"modo-emergencia":renderEmergencyMode,emergencias:renderEmergencies,agua:renderWater,abrigo:renderShelter,nos:renderKnots,navegacao:renderNavigation,energia:renderEnergy,comunicacao:renderCommunication,checklist:renderChecklist,calculadoras:renderCalculators,contatos:renderContacts,plano:renderPlan,ice:renderICE,diario:renderJournal,estoque:renderInventory,manutencao:renderMaintenance,recursos:renderResources,biblioteca:renderLibrary,dados:renderData,fontes:renderSources,"personalizar-home":renderHomeSettings,mais:renderMore};(map[name]||renderHome)();const more=["agua","abrigo","nos","navegacao","energia","comunicacao","contatos","plano","ice","diario","estoque","manutencao","recursos","biblioteca","dados","fontes","personalizar-home"];document.querySelectorAll(".nav-button").forEach(b=>b.classList.toggle("active",b.dataset.nav===name||(b.dataset.nav==="mais"&&more.includes(name))));window.scrollTo(0,0)}
 
 const radians=v=>v*Math.PI/180, degrees=v=>v*180/Math.PI;
 function distanceBearing(lat1,lon1,lat2,lon2){const R=6371.0088,p1=radians(lat1),p2=radians(lat2),dLat=radians(lat2-lat1),dLon=radians(lon2-lon1),a=Math.sin(dLat/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dLon/2)**2,c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)),y=Math.sin(dLon)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dLon);return {distance:R*c,bearing:(degrees(Math.atan2(y,x))+360)%360}}
@@ -490,10 +663,10 @@ function isPlainObject(v){return !!v&&typeof v==="object"&&!Array.isArray(v)}
 function validOptionalString(v){return v===undefined||v===null||typeof v==="string"}
 function trimString(v,max=500){return typeof v==="string"?v.slice(0,max):""}
 function sanitizeBackupArray(name,value,warnings){if(!Array.isArray(value)){warnings.push(`${name}: ignorado porque não é uma lista`);return null}const out=[];for(const raw of value){let clean=null;if(name==="checklist"&&isPlainObject(raw)&&typeof raw.text==="string"&&raw.text.trim())clean={id:typeof raw.id==="string"?raw.id:uid("check"),text:trimString(raw.text,120),category:trimString(raw.category,80),done:!!raw.done};else if(name==="contacts"&&isPlainObject(raw)&&typeof raw.name==="string"&&typeof raw.phone==="string"&&raw.name.trim()&&raw.phone.trim())clean={id:typeof raw.id==="string"?raw.id:uid("contact"),name:trimString(raw.name,100),phone:trimString(raw.phone,60),note:trimString(raw.note,180)};else if(name==="favorites"&&typeof raw==="string"&&(raw.startsWith("emergency:")||raw.startsWith("view:")))clean=raw;else if(name==="journal"&&isPlainObject(raw)&&typeof raw.text==="string"&&raw.text.trim())clean={id:typeof raw.id==="string"?raw.id:uid("journal"),timestamp:validOptionalString(raw.timestamp)?raw.timestamp:new Date().toISOString(),type:trimString(raw.type,60),text:trimString(raw.text,3000),position:isPlainObject(raw.position)&&Number.isFinite(Number(raw.position.lat))&&Number.isFinite(Number(raw.position.lon))?{lat:Number(raw.position.lat),lon:Number(raw.position.lon)}:null};else if(name==="inventory"&&isPlainObject(raw)&&typeof raw.name==="string"&&raw.name.trim()&&Number.isFinite(Number(raw.quantity)))clean={id:typeof raw.id==="string"?raw.id:uid("stock"),name:trimString(raw.name,120),category:trimString(raw.category,80),quantity:Math.max(0,Number(raw.quantity)),unit:trimString(raw.unit,40),minimum:Math.max(0,Number(raw.minimum)||0),expiry:trimString(raw.expiry,20)};else if(name==="maintenance"&&isPlainObject(raw)&&typeof raw.name==="string"&&raw.name.trim())clean={id:typeof raw.id==="string"?raw.id:uid("maint"),name:trimString(raw.name,120),due:trimString(raw.due,20),note:trimString(raw.note,300)};else if(name==="resources"&&isPlainObject(raw)&&typeof raw.name==="string"&&typeof raw.type==="string"&&raw.name.trim())clean={id:typeof raw.id==="string"?raw.id:uid("res"),type:trimString(raw.type,60),name:trimString(raw.name,180),reference:trimString(raw.reference,600),note:trimString(raw.note,500)};if(clean!==null)out.push(clean);else warnings.push(`${name}: um registro inválido foi ignorado`)}return out}
-function sanitizeBackupObject(name,value,warnings){if(!isPlainObject(value)){warnings.push(`${name}: ignorado porque não é um objeto`);return null}if(name==="plan")return {meeting:trimString(value.meeting,300),backupMeeting:trimString(value.backupMeeting,300),radio:trimString(value.radio,300),checkin:trimString(value.checkin,300),backupMethod:trimString(value.backupMethod,300),message:trimString(value.message,1000),notes:trimString(value.notes,2000)};if(name==="ice")return {name:trimString(value.name,120),birthDate:trimString(value.birthDate,20),iceName:trimString(value.iceName,120),icePhone:trimString(value.icePhone,60),bloodType:trimString(value.bloodType,20),allergies:trimString(value.allergies,800),medications:trimString(value.medications,800),conditions:trimString(value.conditions,800),notes:trimString(value.notes,1200)};if(name==="settings")return {textLarge:!!value.textLarge};return null}
+function sanitizeBackupObject(name,value,warnings){if(!isPlainObject(value)){warnings.push(`${name}: ignorado porque não é um objeto`);return null}if(name==="plan")return {meeting:trimString(value.meeting,300),backupMeeting:trimString(value.backupMeeting,300),radio:trimString(value.radio,300),checkin:trimString(value.checkin,300),backupMethod:trimString(value.backupMethod,300),message:trimString(value.message,1000),notes:trimString(value.notes,2000)};if(name==="ice")return {name:trimString(value.name,120),birthDate:trimString(value.birthDate,20),iceName:trimString(value.iceName,120),icePhone:trimString(value.icePhone,60),bloodType:trimString(value.bloodType,20),allergies:trimString(value.allergies,800),medications:trimString(value.medications,800),conditions:trimString(value.conditions,800),notes:trimString(value.notes,1200)};if(name==="settings"){const out={};if(Object.prototype.hasOwnProperty.call(value,"textLarge"))out.textLarge=!!value.textLarge;if(Object.prototype.hasOwnProperty.call(value,"home"))out.home=normalizeHomeSettings(value.home);return out};return null}
 function validateBackup(raw){if(!isPlainObject(raw))throw new Error("O arquivo JSON não contém um objeto de backup válido.");if(raw.app!==undefined&&raw.app!=="Sobrevivência Offline")throw new Error("Este JSON identifica outro aplicativo e não será importado.");const warnings=[],clean={},arrayFields=["checklist","contacts","favorites","journal","inventory","maintenance","resources"],objectFields=["plan","ice","settings"];let recognized=0;for(const field of arrayFields)if(Object.prototype.hasOwnProperty.call(raw,field)){recognized++;const v=sanitizeBackupArray(field,raw[field],warnings);if(v!==null)clean[field]=v}for(const field of objectFields)if(Object.prototype.hasOwnProperty.call(raw,field)){recognized++;const v=sanitizeBackupObject(field,raw[field],warnings);if(v!==null)clean[field]=v}if(Object.prototype.hasOwnProperty.call(raw,"lastPosition")){recognized++;const pos=raw.lastPosition;if(pos===null)clean.lastPosition=null;else if(isPlainObject(pos)&&Number.isFinite(Number(pos.lat))&&Number.isFinite(Number(pos.lon))&&Math.abs(Number(pos.lat))<=90&&Math.abs(Number(pos.lon))<=180)clean.lastPosition={lat:Number(pos.lat),lon:Number(pos.lon),accuracy:Math.max(0,Number(pos.accuracy)||0),timestamp:validOptionalString(pos.timestamp)?pos.timestamp:null};else warnings.push("lastPosition: posição inválida ignorada")}if(Object.prototype.hasOwnProperty.call(raw,"library")){recognized++;const lib=sanitizeLibraryBackup(raw.library,warnings);if(lib)clean.library=lib}if(!recognized)throw new Error("Nenhum campo de dados reconhecido. O arquivo não parece ser um backup do Sobrevivência Offline.");if(raw.app===undefined&&raw.version===undefined&&raw.schema===undefined&&recognized<2)throw new Error("JSON válido, mas sem identificação suficiente para ser tratado como backup do app.");return {clean,warnings,version:raw.version??"antigo/não informado",schema:raw.schema??"antigo/não informado",created:raw.created??null}}
 async function exportBackup(){const data=backupPayload();data.library=await libraryBackupSnapshot();const created=data.created;saveJSON(STORAGE.backupMeta,{created,version:APP_VERSION,schema:CURRENT_SCHEMA});const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`sobrevivencia-backup-v${APP_VERSION}-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);showToast("Backup exportado: dados + metadados da Biblioteca; sem arquivos binários");if(currentView()==="dados")renderData()}
-async function importBackup(file){try{const parsed=JSON.parse(await file.text()),checked=validateBackup(parsed),summary=`Backup validado. Versão: ${checked.version} | Schema: ${checked.schema}${checked.warnings.length?` | Avisos: ${checked.warnings.length}`:" | Sem erros estruturais detectados"}.\n\nPolítica: somente campos presentes e válidos serão atualizados. Campos ausentes do backup antigo serão preservados. Arquivos da Biblioteca nunca são copiados do JSON.\n\nImportar?`;if(!confirm(summary))return;const mappings=[["checklist",STORAGE.checklist],["contacts",STORAGE.contacts],["plan",STORAGE.plan],["favorites",STORAGE.favorites],["lastPosition",STORAGE.lastPosition],["ice",STORAGE.ice],["journal",STORAGE.journal],["inventory",STORAGE.inventory],["maintenance",STORAGE.maintenance],["resources",STORAGE.resources],["settings",STORAGE.settings]];for(const [field,key] of mappings)if(Object.prototype.hasOwnProperty.call(checked.clean,field))saveJSON(key,checked.clean[field]);let libCount=0;if(checked.clean.library)libCount=await importLibraryMetadata(checked.clean.library);migrateData();applySettings();const detail=checked.warnings.length?` ${checked.warnings.length} aviso(s); registros inválidos foram ignorados.`:"";showToast(`Backup importado.${detail}${libCount?` ${libCount} metadado(s) da Biblioteca mesclados.`:""}`);renderView("dados")}catch(e){showToast(e?.message||"Backup inválido ou incompatível")}finally{importInput.value=""}}
+async function importBackup(file){try{const parsed=JSON.parse(await file.text()),checked=validateBackup(parsed),summary=`Backup validado. Versão: ${checked.version} | Schema: ${checked.schema}${checked.warnings.length?` | Avisos: ${checked.warnings.length}`:" | Sem erros estruturais detectados"}.\n\nPolítica: somente campos presentes e válidos serão atualizados. Campos ausentes do backup antigo serão preservados. Arquivos da Biblioteca nunca são copiados do JSON.\n\nImportar?`;if(!confirm(summary))return;const mappings=[["checklist",STORAGE.checklist],["contacts",STORAGE.contacts],["plan",STORAGE.plan],["favorites",STORAGE.favorites],["lastPosition",STORAGE.lastPosition],["ice",STORAGE.ice],["journal",STORAGE.journal],["inventory",STORAGE.inventory],["maintenance",STORAGE.maintenance],["resources",STORAGE.resources],["settings",STORAGE.settings]];for(const [field,key] of mappings)if(Object.prototype.hasOwnProperty.call(checked.clean,field)){if(field==="settings"){const current=getSettings(),incoming=checked.clean.settings||{},merged={...current,...incoming,home:incoming.home?normalizeHomeSettings(incoming.home):current.home};saveJSON(key,merged)}else saveJSON(key,checked.clean[field]);}let libCount=0;if(checked.clean.library)libCount=await importLibraryMetadata(checked.clean.library);migrateData();applySettings();const detail=checked.warnings.length?` ${checked.warnings.length} aviso(s); registros inválidos foram ignorados.`:"";showToast(`Backup importado.${detail}${libCount?` ${libCount} metadado(s) da Biblioteca mesclados.`:""}`);renderView("dados")}catch(e){showToast(e?.message||"Backup inválido ou incompatível")}finally{importInput.value=""}}
 async function clearData(){if(!confirm("Apagar TODOS os dados locais e o índice da Biblioteca?\n\nOs arquivos originais selecionados no Android NÃO serão apagados."))return;Object.values(STORAGE).forEach(key=>localStorage.removeItem(key));await libraryClearAll();migrateData();applySettings();offlineReady=false;showToast("Dados locais e índice apagados; arquivos originais preservados");renderView("dados")}
 async function coreOfflineStatus(){const status={swSupported:"serviceWorker" in navigator,swActive:false,cache:false,files:{},storage:false,cacheRead:false,data:false,libraryDb:false};try{if(status.swSupported){const reg=await navigator.serviceWorker.getRegistration();status.swActive=!!(reg&&reg.active&&!reg.waiting)}}catch{}try{status.cache=await caches.has(EXPECTED_CACHE);if(status.cache){const cache=await caches.open(EXPECTED_CACHE);for(const file of CORE_FILES){const url=new URL(file,location.href).href;status.files[file]=!!(await cache.match(url))}status.cacheRead=Object.values(status.files).length===CORE_FILES.length&&Object.values(status.files).every(Boolean)}}catch{}try{const key="__survival_test";localStorage.setItem(key,"ok");status.storage=localStorage.getItem(key)==="ok";localStorage.removeItem(key)}catch{}try{getChecklist();getContacts();getPlan();getFavorites();getICE();getJournal();getInventory();getMaintenance();getResources();getSettings();status.data=true}catch{}status.libraryDb=await libraryDbRoundTrip();status.ready=status.swActive&&status.cache&&status.cacheRead&&status.storage&&status.data&&status.libraryDb;return status}
 async function runSelfTest(){const el=document.getElementById("selfTestResult");if(!el)return;el.innerHTML="<small>Testando todos os componentes essenciais…</small>";const st=await coreOfflineStatus();offlineReady=!!st.ready;updateConnection();const rows=[["Service Worker",st.swActive],["Cache da versão",st.cache],["HTML + CSS + JavaScript",!!st.files["./index.html"]],["Manifest",!!st.files["./manifest.json"]],["Ícone",!!st.files["./icone.png"]],["Leitura do cache",st.cacheRead],["Armazenamento local",st.storage],["Dados locais",st.data],["Biblioteca / IndexedDB",st.libraryDb]];const installed=window.matchMedia?.("(display-mode: standalone)").matches||!!navigator.standalone;el.innerHTML=`<div class="test-list">${rows.map(([n,ok])=>`<div class="test-row"><span>${n}</span><strong class="${ok?"test-ok":"test-bad"}">${ok?"✓":"✕"}</strong></div>`).join("")}<div class="test-row"><span>PWA instalada</span><strong>${installed?"✓":"opcional"}</strong></div></div><div class="notice ${st.ready?"":"danger"}"><strong>${st.ready?"PRONTO PARA OFFLINE ✓":"⚠ REVISAR OFFLINE"}</strong><br><small>${st.ready?`Todos os arquivos do app e os armazenamentos locais da V${APP_VERSION} passaram no autoteste.`:"Um ou mais componentes essenciais falharam. Abra com internet, aguarde a atualização e execute novamente."}</small></div><div class="notice warning"><strong>Teste real ainda necessário:</strong> o autoteste não consegue provar sozinho que permissões de arquivos, GPS e abertura após reiniciar funcionarão no seu aparelho. Faça também o teste em modo avião.</div>`}
@@ -501,6 +674,10 @@ function searchDatabase(){const em=EMERGENCIES.map(i=>({type:"emergency",id:i.id
 function searchEmergencies(q){const text=normalizeText(q);if(!text)return EMERGENCIES;return EMERGENCIES.filter(i=>normalizeText(`${i.title} ${i.summary} ${i.steps.join(" ")} ${SEARCH_ALIASES[i.id]||""}`).includes(text))}
 
 view.addEventListener("click",event=>{
+  const homeToggle=event.target.closest("[data-home-section-toggle]");if(homeToggle){const id=homeToggle.dataset.homeSectionToggle,home=getSettings().home;setHomeSectionVisibility(id,home.hiddenSections.includes(id));renderHomeSettings();return}
+  const homeMove=event.target.closest("[data-home-section-move]");if(homeMove){moveHomeSection(homeMove.dataset.homeSectionId,Number(homeMove.dataset.homeSectionMove));renderHomeSettings();return}
+  const quickMove=event.target.closest("[data-quick-move]");if(quickMove){moveQuickAccess(quickMove.dataset.quickId,Number(quickMove.dataset.quickMove));renderHomeSettings();return}
+  const quickRemove=event.target.closest("[data-quick-remove]");if(quickRemove){removeQuickAccess(quickRemove.dataset.quickRemove);renderHomeSettings();return}
   const libOpen=event.target.closest("[data-library-open]");if(libOpen){openLibraryItem(libOpen.dataset.libraryOpen);return}
   const libFav=event.target.closest("[data-library-fav]");if(libFav){toggleLibraryFavorite(libFav.dataset.libraryFav);return}
   const libEdit=event.target.closest("[data-library-edit]");if(libEdit){editLibraryItem(libEdit.dataset.libraryEdit);return}
@@ -519,11 +696,12 @@ view.addEventListener("click",event=>{
   const delta=event.target.closest("[data-inventory-delta]");if(delta){const items=getInventory(),i=items.find(x=>x.id===delta.dataset.id);if(i){i.quantity=Math.max(0,Number(i.quantity)+Number(delta.dataset.inventoryDelta));saveJSON(STORAGE.inventory,items);renderInventory()}return}
   const pairs=[["[data-edit-check]",editChecklist,"editCheck"],["[data-edit-contact]",editContact,"editContact"],["[data-edit-inventory]",editInventory,"editInventory"],["[data-edit-maintenance]",editMaintenance,"editMaintenance"],["[data-edit-resource]",editResource,"editResource"]];for(const [sel,fn,key] of pairs){const b=event.target.closest(sel);if(b){fn(b.dataset[key]);return}}
   const deletes=[["[data-delete-check]",STORAGE.checklist,getChecklist,renderChecklist,"deleteCheck"],["[data-delete-contact]",STORAGE.contacts,getContacts,renderContacts,"deleteContact"],["[data-delete-journal]",STORAGE.journal,getJournal,renderJournal,"deleteJournal"],["[data-delete-inventory]",STORAGE.inventory,getInventory,renderInventory,"deleteInventory"],["[data-delete-maintenance]",STORAGE.maintenance,getMaintenance,renderMaintenance,"deleteMaintenance"],["[data-delete-resource]",STORAGE.resources,getResources,renderResources,"deleteResource"]];for(const [sel,key,getter,renderer,dataKey] of deletes){const b=event.target.closest(sel);if(b){if(confirm("Excluir este registro?")){saveJSON(key,getter().filter(x=>x.id!==b.dataset[dataKey]));renderer()}return}}
-  const action=event.target.closest("[data-action]");if(action){switch(action.dataset.action){case"export":exportBackup();break;case"import":importInput.click();break;case"clear":clearData();break;case"self-test":runSelfTest();break;case"library-add-files":addLibraryFiles();break;case"library-add-folder":addLibraryFolder();break;case"library-refresh":refreshLibraryFolders();break;case"library-reconnect":reconnectLibraryPermissions();break;case"library-more":libraryState.limit+=60;renderLibrary();break;case"check-all":{const a=getChecklist();a.forEach(i=>i.done=true);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"uncheck-all":{const a=getChecklist();a.forEach(i=>i.done=false);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"clear-done":{const a=getChecklist(),done=a.filter(i=>i.done).length;if(done&&confirm(`Excluir ${done} item(ns) concluído(s)?`)){saveJSON(STORAGE.checklist,a.filter(i=>!i.done));renderChecklist()}break}case"toggle-text":{const st=getSettings();st.textLarge=!st.textLarge;saveJSON(STORAGE.settings,st);applySettings();renderMore();break}case"start-compass":startCompass();break;case"stop-compass":stopCompass();const n=document.getElementById("compassNote");if(n)n.textContent="Sensor parado.";break}}
+  const action=event.target.closest("[data-action]");if(action){switch(action.dataset.action){case"export":exportBackup();break;case"import":importInput.click();break;case"clear":clearData();break;case"self-test":runSelfTest();break;case"library-add-files":addLibraryFiles();break;case"library-add-folder":addLibraryFolder();break;case"library-refresh":refreshLibraryFolders();break;case"library-reconnect":reconnectLibraryPermissions();break;case"library-more":libraryState.limit+=60;renderLibrary();break;case"check-all":{const a=getChecklist();a.forEach(i=>i.done=true);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"uncheck-all":{const a=getChecklist();a.forEach(i=>i.done=false);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"clear-done":{const a=getChecklist(),done=a.filter(i=>i.done).length;if(done&&confirm(`Excluir ${done} item(ns) concluído(s)?`)){saveJSON(STORAGE.checklist,a.filter(i=>!i.done));renderChecklist()}break}case"toggle-text":{const st=getSettings();st.textLarge=!st.textLarge;saveJSON(STORAGE.settings,st);applySettings();renderMore();break}case"reset-home-settings":{const st=getSettings();st.home=normalizeHomeSettings(null);saveJSON(STORAGE.settings,st);showToast("Tela inicial restaurada");renderHomeSettings();break}case"start-compass":startCompass();break;case"stop-compass":stopCompass();const n=document.getElementById("compassNote");if(n)n.textContent="Sensor parado.";break}}
 });
 view.addEventListener("input",e=>{if(e.target.id==="emergencySearch"){const box=document.getElementById("emergencyList");if(box)box.innerHTML=renderEmergencyList(searchEmergencies(e.target.value));return}if(e.target.id==="librarySearch"){libraryState.query=e.target.value;libraryState.limit=60;clearTimeout(e.target._libTimer);e.target._libTimer=setTimeout(()=>renderLibrary(),180);return}if(e.target.id==="globalSearch"){clearTimeout(e.target._globalTimer);const value=e.target.value;e.target._globalTimer=setTimeout(()=>runGlobalSearch(value),120)}});
 view.addEventListener("change",e=>{if(e.target.id==="libraryCategory"){libraryState.category=e.target.value;libraryState.limit=60;renderLibrary();return}if(e.target.id==="librarySort"){libraryState.sort=e.target.value;libraryState.limit=60;renderLibrary();return}const c=e.target.closest("[data-check]");if(!c)return;const items=getChecklist(),i=items.find(x=>x.id===c.dataset.check);if(i){i.done=c.checked;saveJSON(STORAGE.checklist,items);renderChecklist()}});
 view.addEventListener("submit",e=>{e.preventDefault();const f=e.target,d=new FormData(f);
+  if(f.id==="homeQuickAddForm"){addQuickAccess(String(d.get("module")||""));renderHomeSettings();showToast("Acesso rápido adicionado");return}
   if(f.id==="checklistAddForm"){const a=getChecklist();a.push({id:uid("check"),text:String(d.get("text")).trim(),category:String(d.get("category")||"").trim(),done:false});saveJSON(STORAGE.checklist,a);renderChecklist();return}
   if(f.id==="contactAddForm"){const a=getContacts();a.push({id:uid("contact"),name:String(d.get("name")).trim(),phone:String(d.get("phone")).trim(),note:String(d.get("note")||"").trim()});saveJSON(STORAGE.contacts,a);renderContacts();return}
   if(f.id==="planForm"){saveJSON(STORAGE.plan,{meeting:String(d.get("meeting")||"").trim(),backupMeeting:String(d.get("backupMeeting")||"").trim(),radio:String(d.get("radio")||"").trim(),checkin:String(d.get("checkin")||"").trim(),backupMethod:String(d.get("backupMethod")||"").trim(),message:String(d.get("message")||"").trim(),notes:String(d.get("notes")||"").trim()});showToast("Plano salvo");return}

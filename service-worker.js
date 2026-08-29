@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "sobrevivencia-offline-v";
-const CACHE_NAME = "sobrevivencia-offline-v3.2.3";
+const CACHE_NAME = "sobrevivencia-offline-v3.3.0";
 
 // Somente o shell da PWA entra no cache. Arquivos escolhidos pelo usuário
 // na Biblioteca Offline (fotos, vídeos, PDFs etc.) NUNCA entram aqui.
@@ -40,7 +40,7 @@ self.addEventListener("install", event => {
       // Não chama skipWaiting automaticamente. A versão antiga continua ativa
       // até o app confirmar que a nova foi instalada e o usuário aceitar atualizar.
     } catch (error) {
-      // Se a instalação nova falhar, não deixa um cache V3.2 parcial ocupando o lugar.
+      // Se a instalação nova falhar, não deixa um cache V3.3 parcial ocupando o lugar.
       await caches.delete(CACHE_NAME);
       throw error;
     }
