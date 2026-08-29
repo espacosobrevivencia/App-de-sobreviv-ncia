@@ -1,8 +1,8 @@
 "use strict";
 
-const APP_VERSION = "3.2.0";
+const APP_VERSION = "3.2.2";
 const CURRENT_SCHEMA = 5;
-const EXPECTED_CACHE = "sobrevivencia-offline-v3.2.0";
+const EXPECTED_CACHE = "sobrevivencia-offline-v3.2.2";
 const CORE_FILES = ["./index.html","./styles.css","./app.js","./manifest.json","./icone-192.png","./icone-512.png"];
 const STORAGE = {
   schema: "sobrevivencia_schema_v1",
