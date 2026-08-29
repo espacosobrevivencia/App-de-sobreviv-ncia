@@ -60,6 +60,22 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
 
 .home-config-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #171717}.home-config-row:last-child{border-bottom:0}.home-config-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:#050505;font-size:21px}.home-config-info{min-width:0}.home-config-info strong,.home-config-info small{display:block}.home-config-info small{margin-top:3px;color:var(--muted);font-size:11px;line-height:1.3}.home-config-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}.visibility-button{min-width:72px;height:36px;padding:0 9px;border:1px solid #4a2626;border-radius:10px;background:#120505;color:#d89a9a;font-size:10px;font-weight:900}.visibility-button.on{border-color:#24563a;background:#07160e;color:var(--accent)}.mini-button:disabled{opacity:.25;cursor:not-allowed}.danger-mini{color:#ff9c9c;border-color:#4a2020}.home-add-quick{margin-top:14px;padding-top:12px;border-top:1px solid #171717}.settings-entry{width:100%;min-height:62px;padding:8px 0;border:0;background:transparent;color:var(--text);display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left}.settings-entry>span{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;border:1px solid var(--line);background:#050505;font-size:21px}.settings-entry strong,.settings-entry small{display:block}.settings-entry small{margin-top:3px;color:var(--muted);font-size:11px}.settings-entry>b{font-size:24px;color:#555}.settings-row-divider{padding-top:10px;margin-top:8px;border-top:1px solid #171717}.home-empty .btn{margin-top:10px}.home-editor-list{display:flex;flex-direction:column}@media(max-width:480px){.home-config-row{grid-template-columns:38px minmax(0,1fr)}.home-config-icon{width:38px;height:38px}.home-config-actions{grid-column:1/-1;justify-content:flex-end;padding-left:48px}.visibility-button{min-width:82px}}
 
+
+.home-customize-entry{
+  margin:0 0 12px;
+  border-color:#24563a;
+  background:#020805;
+}
+.home-customize-entry>span{
+  color:var(--accent);
+}
+.home-customize-entry strong{
+  color:#fff;
+}
+.home-customize-entry small{
+  color:var(--muted);
+}
+
 </style>
 </head>
 <body>
@@ -100,9 +116,9 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
   <script>
 "use strict";
 
-const APP_VERSION = "3.3.0";
+const APP_VERSION = "3.3.1";
 const CURRENT_SCHEMA = 6;
-const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.0";
+const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.1";
 const CORE_FILES = ["./index.html","./manifest.json","./icone.png"];
 const STORAGE = {
   schema: "sobrevivencia_schema_v1",
@@ -609,15 +625,34 @@ async function updateLibraryDataCount(){const el=document.getElementById("librar
 async function librarySearchResults(query){const q=normalizeText(query);if(!q)return [];try{const items=await libraryGetAll("items");return items.filter(i=>normalizeText(`${i.name} ${i.category||""} ${(i.tags||[]).join(" ")} ${i.relativePath||""}`).includes(q)).slice(0,8).map(i=>({type:"library",id:i.id,icon:libraryKindIcon(i.kind),title:i.name,description:`Biblioteca · ${i.category||"Geral"} · ${formatBytes(i.size)}`}))}catch{return []}}
 async function runGlobalSearch(query){const box=document.getElementById("globalSearchResults");if(!box)return;const seq=++globalSearchSequence,q=normalizeText(query);if(!q){box.innerHTML="";return}const core=searchDatabase().filter(i=>i.keywords.includes(q)).slice(0,10),lib=await librarySearchResults(query);if(seq!==globalSearchSequence||!document.getElementById("globalSearchResults"))return;const merged=[...core,...lib].slice(0,14);box.innerHTML=merged.length?merged.map(i=>`<button class="search-result" data-global-result="${i.type}" data-global-id="${i.id}">${i.icon} <strong>${escapeHTML(i.title)}</strong><small>${escapeHTML(i.description)}</small></button>`).join(""):`<div class="empty">Nenhum resultado local.</div>`}
 function renderMore(){const settings=getSettings();view.innerHTML=`${pageHeader("☰","Todos os recursos","Completo por dentro, mas organizado para você não procurar demais em uma emergência.")}
-<section class="panel"><div class="search-wrapper"><span>⌕</span><input id="globalSearch" class="search" type="search" placeholder="Buscar água, fogo, corda, bateria, PDF…"></div><div id="globalSearchResults" class="search-results"></div></section>
+
+<button class="wide-more home-customize-entry" data-nav="personalizar-home">
+  <span>🏠</span>
+  <div>
+    <strong>Personalizar tela inicial</strong>
+    <small>Escolher o que aparece, mudar a ordem e configurar os acessos rápidos</small>
+  </div>
+  <b>›</b>
+</button>
+
 <section class="panel">
-  <button class="settings-entry" data-nav="personalizar-home">
-    <span>🏠</span>
-    <div><strong>Personalizar tela inicial</strong><small>Escolher blocos, ordem e acessos rápidos</small></div>
-    <b>›</b>
-  </button>
-  <div class="setting-row settings-row-divider"><div><strong>🔠 Texto grande</strong><div class="meta">Aumenta fontes e controles</div></div><button class="toggle ${settings.textLarge?"on":""}" data-action="toggle-text">${settings.textLarge?"ATIVO":"NORMAL"}</button></div>
+  <div class="search-wrapper">
+    <span>⌕</span>
+    <input id="globalSearch" class="search" type="search" placeholder="Buscar água, fogo, corda, bateria, PDF…">
+  </div>
+  <div id="globalSearchResults" class="search-results"></div>
 </section>
+
+<section class="panel">
+  <div class="setting-row">
+    <div>
+      <strong>🔠 Texto grande</strong>
+      <div class="meta">Aumenta fontes e controles</div>
+    </div>
+    <button class="toggle ${settings.textLarge?"on":""}" data-action="toggle-text">${settings.textLarge?"ATIVO":"NORMAL"}</button>
+  </div>
+</section>
+
 <div class="card-grid">${MODULES.filter(m=>!["checklist","calculadoras"].includes(m[0])).map(m=>resourceCard(m[0],m[1],m[2],m[3])).join("")}</div>`}
 
 function backupPayload(){return {app:"Sobrevivência Offline",version:APP_VERSION,schema:CURRENT_SCHEMA,created:new Date().toISOString(),checklist:getChecklist(),contacts:getContacts(),plan:getPlan(),favorites:getFavorites(),lastPosition:getLastPosition(),ice:getICE(),journal:getJournal(),inventory:getInventory(),maintenance:getMaintenance(),resources:getResources(),settings:getSettings()}}
