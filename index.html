@@ -116,9 +116,9 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
   <script>
 "use strict";
 
-const APP_VERSION = "3.3.1";
+const APP_VERSION = "3.3.2";
 const CURRENT_SCHEMA = 6;
-const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.1";
+const EXPECTED_CACHE = "sobrevivencia-offline-v3.3.2";
 const CORE_FILES = ["./index.html","./manifest.json","./icone.png"];
 const STORAGE = {
   schema: "sobrevivencia_schema_v1",
@@ -389,7 +389,11 @@ function getJournal(){const v=loadJSON(STORAGE.journal,[]);return Array.isArray(
 function getInventory(){const v=loadJSON(STORAGE.inventory,[]);return Array.isArray(v)?v:[]}
 function getMaintenance(){const v=loadJSON(STORAGE.maintenance,[]);return Array.isArray(v)?v:[]}
 function getResources(){const v=loadJSON(STORAGE.resources,[]);return Array.isArray(v)?v:[]}
-function getSettings(){const raw=loadJSON(STORAGE.settings,{});return {textLarge:!!raw.textLarge,home:normalizeHomeSettings(raw.home)}}
+function getSettings(){
+  const loaded=loadJSON(STORAGE.settings,{});
+  const raw=loaded&&typeof loaded==="object"&&!Array.isArray(loaded)?loaded:{};
+  return {textLarge:!!raw.textLarge,home:normalizeHomeSettings(raw.home)};
+}
 function getBackupMeta(){const v=loadJSON(STORAGE.backupMeta,null);return v&&typeof v==="object"&&!Array.isArray(v)?v:null}
 function migrateData(){
   getChecklist(); getContacts(); saveJSON(STORAGE.plan,getPlan());
@@ -456,9 +460,25 @@ function formatWhen(iso){if(!iso)return "";try{return new Intl.DateTimeFormat("p
 function formatDate(date){if(!date)return "";const [y,m,d]=date.split("-");return `${d}/${m}/${y}`}
 function localDateValue(){const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${day}`}
 function daysFromToday(date){if(!date)return null;const today=new Date();today.setHours(12,0,0,0);const target=new Date(date+"T12:00:00");return Math.ceil((target-today)/86400000)}
-function inventoryStatus(item){const low=Number(item.minimum)>0&&Number(item.quantity)<=Number(item.minimum);const dd=daysFromToday(item.expiry);const expired=dd!==null&&dd<0;const expiring=dd!==null&&dd>=0&&dd<=30;return {low,expired,expiring,dd}}
-function maintenanceStatus(item){const dd=daysFromToday(item.due);return {due:dd!==null&&dd<=0,soon:dd!==null&&dd>0&&dd<=14,dd}}
-function getAttentionCount(){return getInventory().filter(i=>{const s=inventoryStatus(i);return s.low||s.expired||s.expiring}).length+getMaintenance().filter(i=>{const s=maintenanceStatus(i);return s.due||s.soon}).length}
+function inventoryStatus(item){
+  item=item&&typeof item==="object"?item:{};
+  const low=Number(item.minimum)>0&&Number(item.quantity)<=Number(item.minimum);
+  const dd=daysFromToday(typeof item.expiry==="string"?item.expiry:"");
+  const expired=dd!==null&&dd<0;
+  const expiring=dd!==null&&dd>=0&&dd<=30;
+  return {low,expired,expiring,dd};
+}
+function maintenanceStatus(item){
+  item=item&&typeof item==="object"?item:{};
+  const dd=daysFromToday(typeof item.due==="string"?item.due:"");
+  return {due:dd!==null&&dd<=0,soon:dd!==null&&dd>0&&dd<=14,dd};
+}
+function getAttentionCount(){
+  const inventory=getInventory().filter(i=>i&&typeof i==="object");
+  const maintenance=getMaintenance().filter(i=>i&&typeof i==="object");
+  return inventory.filter(i=>{const st=inventoryStatus(i);return st.low||st.expired||st.expiring}).length+
+    maintenance.filter(i=>{const st=maintenanceStatus(i);return st.due||st.soon}).length;
+}
 function lastPositionHTML(compact=false){const p=getLastPosition();if(!p||!Number.isFinite(Number(p.lat))||!Number.isFinite(Number(p.lon)))return `<div class="last-location"><small>Nenhuma posição salva ainda.</small></div>`;const lat=Number(p.lat),lon=Number(p.lon),accuracy=Math.max(0,Number(p.accuracy)||0),text=`${lat.toFixed(6)}, ${lon.toFixed(6)}`,share=`📍 Localização: ${text} | Precisão aproximada: ±${Math.round(accuracy)} m | Horário: ${formatWhen(p.timestamp)}`,geo=`geo:${lat},${lon}?q=${lat},${lon}`;return `<div class="last-location"><div class="position-detail-grid"><div><small>Latitude</small><strong class="coord">${lat.toFixed(6)}</strong></div><div><small>Longitude</small><strong class="coord">${lon.toFixed(6)}</strong></div><div><small>Precisão</small><strong>±${Math.round(accuracy)} m</strong></div><div><small>Horário</small><strong>${formatWhen(p.timestamp)}</strong></div></div>${compact?"":`<div class="btn-row"><button class="btn" data-copy="${escapeHTML(text)}">Copiar</button><button class="btn" data-share="${escapeHTML(share)}">Compartilhar</button><a class="btn link-btn" href="${geo}">Abrir no mapa</a></div>`}</div>`}
 
 function homeSectionHTML(id,home,attention){
@@ -476,8 +496,22 @@ function homeSectionHTML(id,home,attention){
 }
 
 function renderHome(){
-  const attention=getAttentionCount(),home=getSettings().home,hidden=new Set(home.hiddenSections);
-  view.innerHTML=home.sectionOrder.filter(id=>!hidden.has(id)).map(id=>homeSectionHTML(id,home,attention)).join("")||`<div class="empty"><strong>Tela inicial sem blocos.</strong><br><small>Use Mais → Personalizar tela inicial para restaurar ou adicionar itens.</small></div>`;
+  try{
+    const attention=getAttentionCount();
+    const home=getSettings().home;
+    const hidden=new Set(home.hiddenSections);
+    const html=home.sectionOrder
+      .filter(id=>!hidden.has(id))
+      .map(id=>{
+        try{return homeSectionHTML(id,home,attention)}
+        catch(error){console.error("Erro no bloco da Home:",id,error);return ""}
+      })
+      .join("");
+    view.innerHTML=html||`<div class="empty"><strong>Tela inicial sem blocos.</strong><br><small>Use Mais → Personalizar tela inicial para restaurar ou adicionar itens.</small><div class="btn-row"><button class="btn primary" data-nav="personalizar-home">Personalizar agora</button><button class="btn" data-action="repair-home-settings">Restaurar padrão</button></div></div>`;
+  }catch(error){
+    console.error("Falha ao montar a Home",error);
+    view.innerHTML=`<div class="notice warning"><strong>Não foi possível carregar a configuração da tela inicial.</strong><br>Seus outros dados continuam preservados.</div><div class="btn-row"><button class="btn primary" data-action="repair-home-settings">Corrigir tela inicial</button><button class="btn" data-nav="mais">Todos os recursos</button></div>`;
+  }
 }
 
 function renderHomeSettings(){
@@ -731,7 +765,7 @@ view.addEventListener("click",event=>{
   const delta=event.target.closest("[data-inventory-delta]");if(delta){const items=getInventory(),i=items.find(x=>x.id===delta.dataset.id);if(i){i.quantity=Math.max(0,Number(i.quantity)+Number(delta.dataset.inventoryDelta));saveJSON(STORAGE.inventory,items);renderInventory()}return}
   const pairs=[["[data-edit-check]",editChecklist,"editCheck"],["[data-edit-contact]",editContact,"editContact"],["[data-edit-inventory]",editInventory,"editInventory"],["[data-edit-maintenance]",editMaintenance,"editMaintenance"],["[data-edit-resource]",editResource,"editResource"]];for(const [sel,fn,key] of pairs){const b=event.target.closest(sel);if(b){fn(b.dataset[key]);return}}
   const deletes=[["[data-delete-check]",STORAGE.checklist,getChecklist,renderChecklist,"deleteCheck"],["[data-delete-contact]",STORAGE.contacts,getContacts,renderContacts,"deleteContact"],["[data-delete-journal]",STORAGE.journal,getJournal,renderJournal,"deleteJournal"],["[data-delete-inventory]",STORAGE.inventory,getInventory,renderInventory,"deleteInventory"],["[data-delete-maintenance]",STORAGE.maintenance,getMaintenance,renderMaintenance,"deleteMaintenance"],["[data-delete-resource]",STORAGE.resources,getResources,renderResources,"deleteResource"]];for(const [sel,key,getter,renderer,dataKey] of deletes){const b=event.target.closest(sel);if(b){if(confirm("Excluir este registro?")){saveJSON(key,getter().filter(x=>x.id!==b.dataset[dataKey]));renderer()}return}}
-  const action=event.target.closest("[data-action]");if(action){switch(action.dataset.action){case"export":exportBackup();break;case"import":importInput.click();break;case"clear":clearData();break;case"self-test":runSelfTest();break;case"library-add-files":addLibraryFiles();break;case"library-add-folder":addLibraryFolder();break;case"library-refresh":refreshLibraryFolders();break;case"library-reconnect":reconnectLibraryPermissions();break;case"library-more":libraryState.limit+=60;renderLibrary();break;case"check-all":{const a=getChecklist();a.forEach(i=>i.done=true);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"uncheck-all":{const a=getChecklist();a.forEach(i=>i.done=false);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"clear-done":{const a=getChecklist(),done=a.filter(i=>i.done).length;if(done&&confirm(`Excluir ${done} item(ns) concluído(s)?`)){saveJSON(STORAGE.checklist,a.filter(i=>!i.done));renderChecklist()}break}case"toggle-text":{const st=getSettings();st.textLarge=!st.textLarge;saveJSON(STORAGE.settings,st);applySettings();renderMore();break}case"reset-home-settings":{const st=getSettings();st.home=normalizeHomeSettings(null);saveJSON(STORAGE.settings,st);showToast("Tela inicial restaurada");renderHomeSettings();break}case"start-compass":startCompass();break;case"stop-compass":stopCompass();const n=document.getElementById("compassNote");if(n)n.textContent="Sensor parado.";break}}
+  const action=event.target.closest("[data-action]");if(action){switch(action.dataset.action){case"export":exportBackup();break;case"import":importInput.click();break;case"clear":clearData();break;case"self-test":runSelfTest();break;case"library-add-files":addLibraryFiles();break;case"library-add-folder":addLibraryFolder();break;case"library-refresh":refreshLibraryFolders();break;case"library-reconnect":reconnectLibraryPermissions();break;case"library-more":libraryState.limit+=60;renderLibrary();break;case"check-all":{const a=getChecklist();a.forEach(i=>i.done=true);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"uncheck-all":{const a=getChecklist();a.forEach(i=>i.done=false);saveJSON(STORAGE.checklist,a);renderChecklist();break}case"clear-done":{const a=getChecklist(),done=a.filter(i=>i.done).length;if(done&&confirm(`Excluir ${done} item(ns) concluído(s)?`)){saveJSON(STORAGE.checklist,a.filter(i=>!i.done));renderChecklist()}break}case"toggle-text":{const st=getSettings();st.textLarge=!st.textLarge;saveJSON(STORAGE.settings,st);applySettings();renderMore();break}case"reset-home-settings":{const st=getSettings();st.home=normalizeHomeSettings(null);saveJSON(STORAGE.settings,st);showToast("Tela inicial restaurada");renderHomeSettings();break}case"repair-home-settings":{const st=getSettings();st.home=normalizeHomeSettings(DEFAULT_HOME_SETTINGS);saveJSON(STORAGE.settings,st);showToast("Tela inicial corrigida");renderView("home");break}case"start-compass":startCompass();break;case"stop-compass":stopCompass();const n=document.getElementById("compassNote");if(n)n.textContent="Sensor parado.";break}}
 });
 view.addEventListener("input",e=>{if(e.target.id==="emergencySearch"){const box=document.getElementById("emergencyList");if(box)box.innerHTML=renderEmergencyList(searchEmergencies(e.target.value));return}if(e.target.id==="librarySearch"){libraryState.query=e.target.value;libraryState.limit=60;clearTimeout(e.target._libTimer);e.target._libTimer=setTimeout(()=>renderLibrary(),180);return}if(e.target.id==="globalSearch"){clearTimeout(e.target._globalTimer);const value=e.target.value;e.target._globalTimer=setTimeout(()=>runGlobalSearch(value),120)}});
 view.addEventListener("change",e=>{if(e.target.id==="libraryCategory"){libraryState.category=e.target.value;libraryState.limit=60;renderLibrary();return}if(e.target.id==="librarySort"){libraryState.sort=e.target.value;libraryState.limit=60;renderLibrary();return}const c=e.target.closest("[data-check]");if(!c)return;const items=getChecklist(),i=items.find(x=>x.id===c.dataset.check);if(i){i.done=c.checked;saveJSON(STORAGE.checklist,items);renderChecklist()}});
@@ -760,7 +794,15 @@ function updateConnection(){if(navigator.onLine){networkStatus.textContent=offli
 window.addEventListener("online",updateConnection);window.addEventListener("offline",updateConnection);window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;installButton.hidden=false});installButton.addEventListener("click",async()=>{if(!installPrompt){showToast("Use o menu do navegador para instalar");return}installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;installButton.hidden=true});window.addEventListener("appinstalled",()=>{installPrompt=null;installButton.hidden=true;showToast("Aplicativo instalado")});
 async function registerServiceWorker(){if(!("serviceWorker" in navigator)){offlineReady=false;updateConnection();return}let reloading=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(reloading)return;reloading=true;location.reload()});try{const reg=await navigator.serviceWorker.register("./service-worker.js",{scope:"./"});const offerUpdate=worker=>{if(!worker)return;const ask=()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller){if(confirm("Nova versão do Sobrevivência Offline foi armazenada com sucesso. Atualizar agora?"))worker.postMessage({type:"SKIP_WAITING"})}};if(worker.state==="installed")ask();else worker.addEventListener("statechange",ask)};if(reg.waiting)offerUpdate(reg.waiting);reg.addEventListener("updatefound",()=>offerUpdate(reg.installing));if(navigator.onLine)reg.update().catch(()=>{});await navigator.serviceWorker.ready;const st=await coreOfflineStatus();offlineReady=!!st.ready;updateConnection()}catch(e){offlineReady=false;updateConnection();console.error(e)}}
 function initialView(){const v=new URLSearchParams(location.search).get("view");return v||"home"}
-migrateData();applySettings();updateConnection();renderView(initialView());coreOfflineStatus().then(st=>{offlineReady=!!st.ready;updateConnection()}).catch(()=>{});registerServiceWorker();
+try{migrateData()}catch(error){console.error("Falha na migração de dados",error)}
+try{applySettings()}catch(error){console.error("Falha ao aplicar configurações",error)}
+try{updateConnection()}catch(error){console.error("Falha no status de conexão",error)}
+try{renderView(initialView())}catch(error){
+  console.error("Falha ao iniciar interface",error);
+  view.innerHTML=`<div class="notice warning"><strong>Não foi possível montar a tela inicial.</strong><br>Os dados locais não foram apagados.</div><div class="btn-row"><button class="btn primary" data-action="repair-home-settings">Corrigir tela inicial</button><button class="btn" data-nav="mais">Todos os recursos</button></div>`;
+}
+coreOfflineStatus().then(st=>{offlineReady=!!st.ready;updateConnection()}).catch(()=>{});
+registerServiceWorker();
 
 </script>
 </body>

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "sobrevivencia-offline-v";
-const CACHE_NAME = "sobrevivencia-offline-v3.3.1";
+const CACHE_NAME = "sobrevivencia-offline-v3.3.2";
 
 // Somente o shell da PWA entra no cache. Arquivos escolhidos pelo usuário
 // na Biblioteca Offline (fotos, vídeos, PDFs etc.) NUNCA entram aqui.
@@ -82,25 +82,17 @@ self.addEventListener("fetch", event => {
   if (request.mode === "navigate") {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
-
-      // Com internet, busca primeiro a versão mais nova do index.
-      // Se der certo, atualiza a cópia offline.
-      try {
-        const response = await fetch(request);
-        if (response && response.ok) {
-          await cache.put(INDEX_URL, response.clone());
-          return response;
-        }
-      } catch {}
-
-      // Sem internet ou em caso de falha, usa a última versão válida.
       const cachedIndex = await cache.match(INDEX_URL);
       if (cachedIndex) return cachedIndex;
 
-      return new Response("Aplicativo indisponível offline.", {
-        status: 503,
-        headers: {"Content-Type": "text/plain; charset=utf-8"}
-      });
+      try {
+        return await fetch(request);
+      } catch {
+        return new Response("Aplicativo indisponível offline.", {
+          status: 503,
+          headers: {"Content-Type": "text/plain; charset=utf-8"}
+        });
+      }
     })());
     return;
   }
