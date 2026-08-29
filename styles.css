@@ -22,3 +22,7 @@ body.text-large{font-size:19px}body.text-large .page-header p,body.text-large .p
 .builtin-resource{display:flex;align-items:flex-start;gap:10px}.builtin-resource>span{font-size:25px}.builtin-resource>div{min-width:0}.builtin-resource strong{display:block}.builtin-resource small{color:var(--muted)}
 @media(max-width:520px){.form-grid.three,.form-grid.four{grid-template-columns:1fr 1fr}.emergency-call-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:360px){.home-core,.critical-action-grid,.favorite-grid{grid-template-columns:1fr}}
+
+/* V3.1 — confiabilidade, GPS e backup */
+.position-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.position-detail-grid>div{min-width:0;padding:9px;border:1px solid #173425;border-radius:11px;background:#010302}.position-detail-grid small{margin:0 0 4px;color:var(--muted)}.position-detail-grid strong{display:block;font-size:13px;overflow-wrap:anywhere}.link-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}.backup-meta{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid #234634;border-radius:12px;background:#020604;margin:9px 0}.backup-meta small{color:var(--muted)}
+@media(max-width:360px){.position-detail-grid{grid-template-columns:1fr}}
