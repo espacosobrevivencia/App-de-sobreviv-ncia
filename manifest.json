@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Sobrevivência Offline",
+  "name": "Sobrevivência Central",
   "short_name": "Sobrevivência",
-  "description": "Centro de ação rápida offline para emergências, sobrevivência, navegação, energia e preparo.",
+  "description": "Central offline do segundo espaço para emergência, navegação, comunicação, conhecimento e preparo.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",
